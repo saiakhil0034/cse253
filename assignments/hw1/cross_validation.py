@@ -4,7 +4,7 @@ from cm import plot_confusion_matrix
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def unbalanced_cross_validation_data(dataset, cnt, emotions, K):
+def unbalanced_cross_validation_data(dataset, cnt, emotions, K): #Returns K-folds of data in unbalanced scenario, Takes dataset, emotion array and K (number of folds) as input
 	balanced_data, count, e_cnts = unbalanced_sampler(dataset, cnt, emotions)
 	curr_size = 0
 	increment = count//K
@@ -34,10 +34,10 @@ def unbalanced_cross_validation_data(dataset, cnt, emotions, K):
 			images = np.array(k_data[emotion][k])
 			images = images.reshape(images.shape[0],-1)
 			Xs[k] = np.vstack((Xs[k],images))
-			Ys[k] = np.vstack((Ys[k],np.zeros(images.shape[0]).reshape(images.shape[0],1)+i)) ######################################
+			Ys[k] = np.vstack((Ys[k],np.zeros(images.shape[0]).reshape(images.shape[0],1)+i))
 	return Xs,Ys, np.max(e_cnts)/e_cnts
 
-def cross_validation_data(dataset, cnt, emotions, K):
+def cross_validation_data(dataset, cnt, emotions, K): #Returns K-folds of data in balanced scenario, Takes dataset, emotion array and K (number of folds) as input
 	balanced_data = balanced_sampler(dataset, cnt, emotions)
 	count = len(balanced_data[emotions[0]])
 	curr_size = 0
@@ -72,7 +72,7 @@ def cross_validation_data(dataset, cnt, emotions, K):
 	return Xs,Ys
 	
 
-def PCA(X, y, n_components):
+def PCA(X, y, n_components): #Uses PCA to find the projected data onto first n_components eigenvectors. Also returns mean_image, singular values and the eigenvectors 
 	x_shape = np.shape(X)
 	mean_image = np.average(X, axis = 0)
 
@@ -85,12 +85,16 @@ def PCA(X, y, n_components):
 
 	return np.matmul(msd, vh)/si, mean_image, si, vh
 
-def convert_PCA(X, mean_image, si, vh):
+def convert_PCA(X, mean_image, si, vh): #Takes train images' mean_image and singular values to find lower dimensional projected image and normalizes the values using singular values 
 	mean_shifted_data = X - mean_image
 	msd = mean_shifted_data
 	return np.matmul(msd, vh)/si
 
-def preprocessor(Xs,Ys, val_id, test_id, n_components, label_weights):
+def preprocessor(Xs,Ys, val_id, test_id, n_components, label_weights): #
+	"""
+	definition: Creates Train, Validation and Test Dataset taking k-fold-id for valid_set and test_set. Also returns Class weights if there is imbalance in the dataset. 
+	If there is no imbalance argument label_weights will be an array of one.
+	"""
 	K = len(Xs)
 	train_set_X = np.empty((0,Xs[0].shape[1]))
 	train_set_y = np.empty((0,1),'int')
@@ -116,14 +120,18 @@ def preprocessor(Xs,Ys, val_id, test_id, n_components, label_weights):
 	return train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, vh, weights_y
 		
 
-def sigmoid(X):
+def sigmoid(X): #Sigmoid Function
 	return 1./(1. + np.exp(-X))
 
-def ce_loss(preds, y):
+def ce_loss(preds, y): #Cross-Entropy Loss 
 	return -np.mean((y*np.log(preds+1e-8) + (1-y)*np.log(1-preds + 1e-8)))
 		
 def logistic_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, shape_0, shape_1, vh, learn_rate, n_epochs = 200, is_stochastic = False):
-	weights = np.zeros((train_PCA.shape[1]+1,1))#np.random.random((train_PCA.shape[1],1))
+	"""
+	definition: Takes train/test/validation datasets and runs logistic classifier to update the network weights. Takes learning_rate, #epochs, is_stochastic as argument which 
+	defines whether to run SGD or BGD.
+	"""
+	weights = np.zeros((train_PCA.shape[1]+1,1))
 
 	train_PCA = np.hstack((train_PCA,np.ones((train_set_y.shape[0],1))))
 	valid_PCA = np.hstack((valid_PCA,np.ones((valid_PCA.shape[0],1))))
@@ -168,22 +176,17 @@ def logistic_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_
 		if valid_loss<best_loss:
 			best_loss = valid_loss
 			best_weights = weights.copy()
-		#print('Epoch {}'.format(epoch))
-		#print('Train_loss {}'.format(train_loss))
-		#print('Valid_loss {}'.format(valid_loss))
 	
 		accuracy_tr = np.sum(1*(predictions>0.5)== train_set_y)/train_set_y.shape[0]
 		accuracy_valid = np.sum(1*(predictions_valid>0.5) == validation_set_y)/validation_set_y.shape[0]
 		
-		#print('Train_acc {}'.format(accuracy_tr))
-		#print('Valid_acc {}'.format(accuracy_valid))
 		train_accs.append(accuracy_tr)
 		train_losses.append(train_loss)
 		valid_accs.append(accuracy_valid)
 		valid_losses.append(valid_loss)
 	
-	# if (fold == 0):
-	# 	visualize_pcs(shape_0, shape_1, vh)
+	if (fold == 0):
+		visualize_pcs(shape_0, shape_1, vh)
 
 	predictions_test = np.matmul(test_PCA, best_weights)
 	predictions_test = sigmoid(predictions_test)
@@ -192,20 +195,32 @@ def logistic_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_
 	return accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, np.zeros((2,2))
 
 def softmax(X):
+	"""
+	definition: Applies Softmax function on argument array X
+	"""
 	temp = np.exp(X-np.max(X,axis=1,keepdims=True))
 	return temp/(temp.sum(axis=1)).reshape(X.shape[0],1)
 
 def softmax_loss(preds,y):
+	"""
+	definition: Finds the mean softmax loss. Takes network predictions (sum over classes should be one) and actual labels as one-hot array as inputs. 
+	"""
 	return -(np.log(preds + 1e-8)*y).mean()
 
 	 
 def one_hot_f(y):
+	"""
+	definition: Converts the input array to one-hot array.
+	"""
 	y = y.astype(int)
 	one_hot = np.zeros((y.shape[0], int(y.max()+1)))
 	one_hot[np.arange(y.shape[0]),y.squeeze()] = 1
 	return one_hot
 	
 def confusion_array(predictions, labels):
+	"""
+	definition: Creates confusion count matrix. Will be normalized and used to plot confusion matrix 
+	"""
 	from sklearn.metrics import confusion_matrix
 
 	y_pred = predictions.argmax(1)
@@ -214,6 +229,10 @@ def confusion_array(predictions, labels):
 	return confusion_matrix(y_actu, y_pred)
 
 def softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, shape_0, shape_1, vh, emotions, weights_y, learn_rate = 0.1, n_epochs = 200, is_stochastic=False):
+	"""
+	definition: Takes train/test/validation datasets and runs softmax classifier to update the network weights. Takes learning_rate, #epochs, is_stochastic as argument which 
+	defines whether to run SGD or BGD.
+	"""
 	n_emotions = int(train_set_y.max()+1)
 	weights = np.zeros((train_PCA.shape[1] + 1,n_emotions))
 
@@ -285,8 +304,8 @@ def softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y
 	test_loss = softmax_loss(predictions_test, test_set_y)
 	accuracy_test = np.sum((predictions_test.argmax(1) == test_set_y.argmax(1)))/test_set_y.shape[0]
 	
-	# if (fold == 0):
-	# 	visualize_weights(best_weights, shape_0, shape_1, vh, emotions)
+	if (fold == 0):
+		visualize_weights(best_weights, shape_0, shape_1, vh, emotions)
 
 	test_cij = confusion_array(predictions_test, test_set_y)
 	return accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij
@@ -294,6 +313,9 @@ def softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y
 
 import matplotlib.pyplot as plt
 def plotter(train_acc, train_loss, valid_accs, valid_loss, n_components, learn_rate):
+	"""
+	definition: Takes Train/Test/Validation sets accuracy and loss arrays. Computes average across K-folds and plots the arrays.  
+	"""
 	everyerror = 50
 	train_acc_std = np.std(np.array(train_acc),axis=0).squeeze()
 	valid_acc_std = np.std(np.array(valid_accs),axis=0).squeeze()
@@ -333,6 +355,9 @@ def plotter(train_acc, train_loss, valid_accs, valid_loss, n_components, learn_r
 	
 
 def kachra_code(data_dir, emotions, classifier=None, K=10, n_components=40, learn_rates=[0.01, 0.1, 1]):
+	"""
+	definition: Takes learn_rates array as argument and plots training losses vs epochs for these learning rates.  
+	"""
 	dataset, cnt = load_data(data_dir)
 	label_weights = np.ones(len(emotions))
 	Xs, Ys = cross_validation_data(dataset, cnt,emotions, K)
@@ -373,7 +398,11 @@ def kachra_code(data_dir, emotions, classifier=None, K=10, n_components=40, lear
 	#plt.save('./lr_effect.png')
 
 
-def kachra_code2(data_dir, emotions, classifier=None, K=10, n_components=40):
+def kachra_code_SGD_BGD(data_dir, emotions, classifier=None, K=10, n_components=40):
+	"""
+	definition: plots training losses vs epochs for Stochastic and Batch gradient descent. Plots these on a graph for easy comparison.  
+	"""
+
 	dataset, cnt = load_data(data_dir)
 	label_weights = np.ones(len(emotions))
 	Xs, Ys = cross_validation_data(dataset, cnt,emotions, K)
@@ -426,6 +455,10 @@ def kachra_code2(data_dir, emotions, classifier=None, K=10, n_components=40):
 	#plt.save('./lr_effect.png')
 	
 def k_cross_validation(data_dir, emotions, classifier=None, K=10, n_components=40, learn_rate=0.1):
+	"""
+	definition: For each CV-fold, runs the corresponding ML algo. Uses Plotter function to plot the graphs for visualization.
+	"""
+
 	dataset, cnt = load_data(data_dir)
 	label_weights = np.ones(len(emotions))
 	# Xs, Ys = cross_validation_data(dataset, cnt,emotions, K)
@@ -468,6 +501,10 @@ def k_cross_validation(data_dir, emotions, classifier=None, K=10, n_components=4
 	print('Test loss {},{}'.format(np.array(losses_kfold).mean(), np.array(losses_kfold).std()))
 
 def plot_confusion_matrix2(cij_arr, emotions):
+	"""
+	definition: Plots confusion matrix. Takes confusion count matrix as argument.
+	"""
+
 	print(emotions)
 	df_conf_norm = cij_arr / cij_arr.sum(axis=1)
 	
@@ -490,12 +527,20 @@ def plot_confusion_matrix2(cij_arr, emotions):
 
 
 def visualize_pcs(shape_0, shape_1, vh):
+	"""
+	definition: Reshapes top 4 PCs and shows the resultant matrix as image.
+	"""
+
 	for idx in range(4):
 		fig = plt.figure()
 		plt.title(f'Principal Component : {idx}')
 		plt.imshow(vh[:,idx].reshape((shape_0, shape_1)))
 
 def visualize_weights(weights, shape_0, shape_1, vh, emotions):
+	"""
+	definition: Weights for each emotion are multiplied with top 50 PCs and the resultant array is reshaped and shown as image.
+	"""
+
 	X = weights[:-1, :]
 	X = np.matmul(vh, X)
 
@@ -508,6 +553,7 @@ def visualize_weights(weights, shape_0, shape_1, vh, emotions):
 		fig = plt.figure()
 		plt.title(emotions[idx])
 		plt.imshow(images[:,:,idx])
+		plt.colorbar()
 
 
 # example on how to use it
@@ -522,8 +568,8 @@ if __name__ == '__main__':
 	# kachra_code(data_dir, emotions)
 	# Part 2
 	emotions = ['anger','disgust','happiness','surprise','sadness','fear']
-	# k_cross_validation(data_dir, emotions)
+	k_cross_validation(data_dir, emotions)
 	# kachra_code(data_dir, emotions)
-	kachra_code2(data_dir, emotions)
+	# kachra_code_SGD_BGD(data_dir, emotions)
 	
 	
