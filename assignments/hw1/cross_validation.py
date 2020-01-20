@@ -1,6 +1,8 @@
 from dataloader import load_data, balanced_sampler, unbalanced_sampler
 import numpy as np
 from cm import plot_confusion_matrix
+import matplotlib.pyplot as plt
+import pandas as pd
 
 def unbalanced_cross_validation_data(dataset, cnt, emotions, K):
 	balanced_data, count, e_cnts = unbalanced_sampler(dataset, cnt, emotions)
@@ -120,7 +122,7 @@ def sigmoid(X):
 def ce_loss(preds, y):
 	return -np.mean((y*np.log(preds+1e-8) + (1-y)*np.log(1-preds + 1e-8)))
 		
-def logistic_classifier(train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, n_epochs = 50, learn_rate = 0.01, is_stochastic = False):
+def logistic_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, shape_0, shape_1, vh, learn_rate, n_epochs = 200, is_stochastic = False):
 	weights = np.zeros((train_PCA.shape[1]+1,1))#np.random.random((train_PCA.shape[1],1))
 
 	train_PCA = np.hstack((train_PCA,np.ones((train_set_y.shape[0],1))))
@@ -180,6 +182,9 @@ def logistic_classifier(train_PCA, train_set_y, valid_PCA, validation_set_y, tes
 		valid_accs.append(accuracy_valid)
 		valid_losses.append(valid_loss)
 	
+	# if (fold == 0):
+	# 	visualize_pcs(shape_0, shape_1, vh)
+
 	predictions_test = np.matmul(test_PCA, best_weights)
 	predictions_test = sigmoid(predictions_test)
 	test_loss = ce_loss(predictions_test, test_set_y)
@@ -208,7 +213,7 @@ def confusion_array(predictions, labels):
 
 	return confusion_matrix(y_actu, y_pred)
 
-def softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, shape_0, shape_1, vh, emotions, weights_y, n_epochs = 50, learn_rate = 0.01, is_stochastic=False):
+def softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, shape_0, shape_1, vh, emotions, weights_y, learn_rate = 0.1, n_epochs = 200, is_stochastic=False):
 	n_emotions = int(train_set_y.max()+1)
 	weights = np.zeros((train_PCA.shape[1] + 1,n_emotions))
 
@@ -280,16 +285,16 @@ def softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y
 	test_loss = softmax_loss(predictions_test, test_set_y)
 	accuracy_test = np.sum((predictions_test.argmax(1) == test_set_y.argmax(1)))/test_set_y.shape[0]
 	
-	if (fold == 0):
-		visualize_weights(best_weights, shape_0, shape_1, vh, emotions)
+	# if (fold == 0):
+	# 	visualize_weights(best_weights, shape_0, shape_1, vh, emotions)
 
 	test_cij = confusion_array(predictions_test, test_set_y)
 	return accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij
 
 
-
 import matplotlib.pyplot as plt
-def plotter(train_acc, train_loss, valid_accs, valid_loss):
+def plotter(train_acc, train_loss, valid_accs, valid_loss, n_components, learn_rate):
+	everyerror = 50
 	train_acc_std = np.std(np.array(train_acc),axis=0).squeeze()
 	valid_acc_std = np.std(np.array(valid_accs),axis=0).squeeze()
 	train_loss_std = np.std(np.array(train_loss),axis=0).squeeze()
@@ -302,32 +307,131 @@ def plotter(train_acc, train_loss, valid_accs, valid_loss):
 	
 	xaxis = np.arange(train_acc.shape[0])+1
 	fig = plt.figure(figsize=(12,8))
-	plt.title('Accuracy vs Epoch')
+	plt.title('Accuracy vs Epoch, NumberPCs = {} learn_rate = {}'.format(n_components, learn_rate))
 	plt.xlabel('Epochs')
 	plt.ylabel('Accuracy')
-	plt.errorbar(xaxis, train_acc, train_acc_std, errorevery =10,elinewidth=3, ecolor='b', color='b',label='Training')
-	plt.errorbar(xaxis,valid_accs, valid_acc_std,errorevery =10,elinewidth=1, ecolor='g', color='r',label='Validation')
+	# plt.plot(xaxis, train_acc, label='Training')
+	# plt.plot(xaxis,valid_accs, label='Validation')
+	plt.errorbar(xaxis, train_acc, train_acc_std, errorevery =everyerror,elinewidth=3, ecolor='b', color='b',label='Training')
+	plt.errorbar(xaxis,valid_accs, valid_acc_std,errorevery =everyerror,elinewidth=1, ecolor='g', color='r',label='Validation')
 	
 	plt.legend(loc='upper left')
+	plt.grid()
 	plt.show()
 	
 	fig = plt.figure()
-	plt.title('Loss vs Epoch')
+	plt.title('Loss vs Epoch, NumberPCs = {} learn_rate = {}'.format(n_components, learn_rate))
 	plt.xlabel('Epochs')
 	plt.ylabel('CE Loss')
-	plt.errorbar(xaxis, train_loss, train_loss_std, errorevery =10,elinewidth=3, ecolor='b', color='b',label='Training')
-	plt.errorbar(xaxis,valid_loss, valid_loss_std,errorevery =10,elinewidth=1, ecolor='g', color='r',label='Validation')
+	# plt.plot(xaxis, train_loss, label='Training')
+	# plt.plot(xaxis,valid_loss, label='Validation')
+	plt.errorbar(xaxis, train_loss, train_loss_std, errorevery =everyerror,elinewidth=3, ecolor='b', color='b',label='Training')
+	plt.errorbar(xaxis,valid_loss, valid_loss_std,errorevery =everyerror,elinewidth=1, ecolor='g', color='r',label='Validation')
 	plt.legend(loc='upper left')
+	plt.grid()
 	plt.show()
 	
+
+def kachra_code(data_dir, emotions, classifier=None, K=10, n_components=40, learn_rates=[0.01, 0.1, 1]):
+	dataset, cnt = load_data(data_dir)
+	label_weights = np.ones(len(emotions))
+	Xs, Ys = cross_validation_data(dataset, cnt,emotions, K)
+
+	train_losses_k_fold_mean = []
+	train_losses_k_fold_std = []
+
+	for lr in learn_rates:
+		temp_arr = []
+		for fold in range(K):
+			val_id = fold
+			test_id = (fold+1)%K
+			train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, vh, weights_y = preprocessor(Xs, Ys, val_id, test_id, n_components, label_weights)
+			# accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = logistic_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, lr)
+			accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, emotions, weights_y, lr)
+
+			temp_arr.append(np.array(train_losses))
+
+		train_losses_k_fold_mean.append(np.array(temp_arr).mean(axis=0))
+		train_losses_k_fold_std.append(np.array(temp_arr).std(axis=0))
+
+	x = range(0,1000,1)
+	colors = ['r','b','k']
+	e_size = [5,3,1]
+
+	plt.figure(figsize =(10,8))
+	for idy,y in enumerate(train_losses_k_fold_mean):
+		#ax.plot(x,y,label = learn_rates[idy])
+		plt.errorbar(x,y,train_losses_k_fold_std[idy],errorevery=50,elinewidth=e_size[idy], ecolor=colors[idy], color=colors[idy],label=f'lr : {learn_rates[idy]}')
+
+	plt.xlabel("# epoches")
+	plt.ylabel("entropy loss")
+	plt.ylim([0,0.5])
+	plt.title(" entropy loss vs # epoches")
+	plt.grid()
+	plt.legend()
+	plt.show()
+	#plt.save('./lr_effect.png')
+
+
+def kachra_code2(data_dir, emotions, classifier=None, K=10, n_components=40):
+	dataset, cnt = load_data(data_dir)
+	label_weights = np.ones(len(emotions))
+	Xs, Ys = cross_validation_data(dataset, cnt,emotions, K)
+
+	K=1
+
+	temp_arr = []
+	for fold in range(K):
+		val_id = fold
+		test_id = (fold+1)%K
+		train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, vh, weights_y = preprocessor(Xs, Ys, val_id, test_id, n_components, label_weights)
+		accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, emotions, weights_y, is_stochastic=False)
+
+		temp_arr.append(np.array(train_losses))
+
+
+	train_losses_mean_batch = np.array(temp_arr).mean(axis=0)
+	train_losses_std_batch = np.array(temp_arr).std(axis=0)
+
+	temp_arr = []
+	for fold in range(K):
+		val_id = fold
+		test_id = (fold+1)%K
+		train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, vh, weights_y = preprocessor(Xs, Ys, val_id, test_id, n_components, label_weights)
+		accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, emotions, weights_y, is_stochastic=True)
+
+		temp_arr.append(np.array(train_losses))
+
+
+	train_losses_mean_stoch = np.array(temp_arr).mean(axis=0)
+	train_losses_std_stoch = np.array(temp_arr).std(axis=0)
+
+	x = range(0,200,1)
+	colors = ['r','b']
+	e_size = [3,1]
+
+	plt.figure(figsize =(10,8))
+	plt.plot(x, train_losses_mean_batch, label='BGD')
+	plt.plot(x, train_losses_mean_stoch, label='SGD')
+	# plt.errorbar(x,train_losses_mean_batch,train_losses_std_batch,errorevery=10,elinewidth=e_size[0], ecolor=colors[0], color=colors[0],label=f'BatchGradientDescent')
+	# plt.errorbar(x,train_losses_mean_stoch,train_losses_std_stoch,errorevery=10,elinewidth=e_size[1], ecolor=colors[1], color=colors[1],label=f'SGD')
+
+	plt.xlabel("# epoches")
+	plt.ylabel("entropy loss")
+	# plt.ylim([0,0.5])
+	plt.title("Train entropy loss vs # epoches")
+	plt.grid()
+	plt.legend()
+	plt.show()
+	#plt.save('./lr_effect.png')
 	
-def k_cross_validation(data_dir, emotions, classifier=None, K=10, n_components=6):
+def k_cross_validation(data_dir, emotions, classifier=None, K=10, n_components=40, learn_rate=0.1):
 	dataset, cnt = load_data(data_dir)
 	label_weights = np.ones(len(emotions))
 	# Xs, Ys = cross_validation_data(dataset, cnt,emotions, K)
 	Xs, Ys, label_weights = unbalanced_cross_validation_data(dataset, cnt,emotions, K)
-	label_weights = np.ones(len(emotions))
-	
+	# label_weights = np.ones(len(emotions))
+
 	accs_kfold = []
 	losses_kfold = []
 	train_accs_k_fold = []
@@ -340,8 +444,8 @@ def k_cross_validation(data_dir, emotions, classifier=None, K=10, n_components=6
 		val_id = fold
 		test_id = (fold+1)%K
 		train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, vh, weights_y = preprocessor(Xs, Ys, val_id, test_id, n_components, label_weights)
-		accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, emotions, weights_y)
-		# accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = logistic_classifier(train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y)
+		accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = softmax_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, emotions, weights_y, learn_rate)
+		# accuracy_test, test_loss, train_accs, train_losses, valid_accs, valid_losses, test_cij = logistic_classifier(fold, train_PCA, train_set_y, valid_PCA, validation_set_y, test_PCA, test_set_y, np.shape(dataset[emotions[0]])[1], np.shape(dataset[emotions[0]])[2], vh, learn_rate)
 
 		train_accs_k_fold.append(np.array(train_accs))
 		train_losses_k_fold.append(np.array(train_losses))
@@ -358,22 +462,38 @@ def k_cross_validation(data_dir, emotions, classifier=None, K=10, n_components=6
 		#print('Loss {}'.format(test_loss ))
 	
 	# plot_confusion_matrix2(sum_cij, emotions)
-	plotter(train_accs_k_fold, train_losses_k_fold, valid_accs_k_fold, valid_losses_k_fold)
+	plotter(train_accs_k_fold, train_losses_k_fold, valid_accs_k_fold, valid_losses_k_fold, n_components, learn_rate)
 	
 	print('Test accuracy {},{}'.format(np.array(accs_kfold).mean(), np.array(accs_kfold).std()))
 	print('Test loss {},{}'.format(np.array(losses_kfold).mean(), np.array(losses_kfold).std()))
 
 def plot_confusion_matrix2(cij_arr, emotions):
+	print(emotions)
 	df_conf_norm = cij_arr / cij_arr.sum(axis=1)
+	
+	df_cm = pd.DataFrame(df_conf_norm, index = [i for i in emotions],
+	                  columns = [j for j in emotions])
+	fig,ax = plt.subplots(1,figsize = (10,8))
+	im = ax.imshow(df_conf_norm)
+	ax.figure.colorbar(im, ax = ax)
+	for i in range(df_conf_norm.shape[0]):
+		for j in range(df_conf_norm.shape[1]):
+			ax.text(j,i, f"{df_conf_norm[i,j]}", ha = "center", va = "center")
 
-	import seaborn as sn
-	import pandas as pd
-	import matplotlib.pyplot as plt
-	df_cm = pd.DataFrame(df_conf_norm, index = [i for i in "ABCDEF"],
-	                  columns = [i for i in "GHIJKL"])
-	plt.figure(figsize = (6,4))
-	sn.heatmap(df_cm, annot=True)
+	# ax.set_xticks(range(len(emotions)))
+	# ax.set_yticks(range(len(emotions)))
+	ax.set_xticklabels(emotions)
+	ax.set_yticklabels(emotions)
+	
+	#sn.heatmap(df_cm, annot=True)
 	plt.show()
+
+
+def visualize_pcs(shape_0, shape_1, vh):
+	for idx in range(4):
+		fig = plt.figure()
+		plt.title(f'Principal Component : {idx}')
+		plt.imshow(vh[:,idx].reshape((shape_0, shape_1)))
 
 def visualize_weights(weights, shape_0, shape_1, vh, emotions):
 	X = weights[:-1, :]
@@ -397,11 +517,13 @@ if __name__ == '__main__':
 	dataset, cnt = load_data(data_dir)
 	
 	# Part 1
-	emotions = ['happiness', 'anger']
-	k_cross_validation(data_dir, emotions)	
-	# Part 2
-	# emotions = ['anger','disgust','happiness','surprise','sadness','fear']
+	# emotions = ['fear', 'surprise']
 	# k_cross_validation(data_dir, emotions)
-	
+	# kachra_code(data_dir, emotions)
+	# Part 2
+	emotions = ['anger','disgust','happiness','surprise','sadness','fear']
+	# k_cross_validation(data_dir, emotions)
+	# kachra_code(data_dir, emotions)
+	kachra_code2(data_dir, emotions)
 	
 	
