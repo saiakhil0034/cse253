@@ -40,10 +40,18 @@ def normalize_data(img):
     Normalize your inputs here and return them.
     Here we are doing min max normalisation
     """
+    # img is (60,000 x 784) matrix where rows = samples, cols = pixels in img
     img_cp = img.copy()
+
+    # first min max normalisation to remove brightness effects
     min_val = img_cp.min(axis=1).reshape(-1, 1)
     max_val = img_cp.max(axis=1).reshape(-1, 1)
-    norm_img = (img_cp - min_val) / (max_val - min_val)
+    minmax_norm_img = (img_cp - min_val) / (max_val - min_val)
+
+    # then centerring the datset :
+    # normalize each column to 0 mean with unit standard deviation (z-score)
+    norm_img = (minmax_norm_img - np.mean(minmax_norm_img, axis=0)
+                ) / np.std(minmax_norm_img, axis=0)
     return norm_img
 
 
@@ -53,6 +61,7 @@ def one_hot_encoding(labels, num_classes=10):
     Here we are assuming labels are already from 0 to num_classes,
     if not we need to encode them to 0 to num_classes
     """
+
     num_patterns = len(labels)
     ohe_arr = np.zeros((num_patterns, num_classes))
     ohe_arr[np.arange(num_patterns), labels] = 1
@@ -140,6 +149,7 @@ def softmax(x):
     Implement the softmax function here.
     Remember to take care of the overflow condition.
     """
+
     k = np.max(x, axis=1).reshape(-1, 1)  # To avoid overflow
     x = x - k
     # print(x)
@@ -172,7 +182,9 @@ class Activation(object):
         self.y = None
 
     def __call__(self, a):
-        """This method allows your instances to be callable."""
+        """
+        This method allows your instances to be callable.
+        """
         return self.forward(a)
 
     def forward(self, a):
@@ -256,12 +268,15 @@ class Layer(object):
         self.batch_size = config["batch_size"]
 
         # Declare the Weight matrix
+        # weight matrix shape (rows = num input nodes, cols = num output nodes)
         self.w = np.random.randn(in_units, out_units)
         self.w = (self.w - np.mean(self.w, axis=0)) / \
             (np.std(self.w, axis=0) * np.sqrt(in_units))
+        # bias vector shape (1, num output nodes)
         self.b = np.zeros((1, out_units))
 
         self.x = None       # input to forward
+        # a vector shape (1, num output nodes)
         self.a = None       # output of forward pass(without activation)
 
         self.d_x = None     # gradient w.r.t x in this
@@ -271,7 +286,7 @@ class Layer(object):
         self.vb = 0       # Momentum term
 
     def __call__(self, x):
-        """Make layer callable."""
+        """Making layer callable."""
         return self.forward(x)
 
     def forward(self, x):
@@ -280,6 +295,10 @@ class Layer(object):
         Do not apply activation here.
         Return self.a
         """
+        # for each layer, forward pass is just dot(w_j,x_i) + b_j
+        # this can generalize through matrix multiplication
+        # w shape assumption (in_units,out_units)
+        # x shape assumption (matrix where each row is a sample)
         self.x = x
         self.a = (self.x).dot(self.w) + self.b
         return self.a
@@ -344,8 +363,7 @@ class Neuralnetwork(object):
                 self.layers.append(Activation(config['activation']))
 
     def __call__(self, x, targets=None):
-        """Make NeuralNetwork callable."""
-
+        """Making NeuralNetwork callable."""
         return self.forward(x, targets)
 
     def forward(self, x, targets=None):
@@ -371,8 +389,12 @@ class Neuralnetwork(object):
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        loss = (-np.multiply(np.log(logits), targets)).sum(axis=1).mean()
-        return loss
+        # take log of y
+        ln_y = np.log(logits)
+        # multiply by targets and sum along classes axis
+        t_ln_y = np.sum(np.multiply(targets, ln_y), axis=1)
+        # Compute cost and normalize by number of samples in data
+        return t_ln_y.mean()
 
     def backward(self):
         '''
@@ -540,7 +562,7 @@ def check_num_grad(x_train, y_train, model, config):
 
     for node in chosen_nodes:
         print(f"layer : {node.layer}, position : {node.ix}")
-        #print(getattr(model.layers[node.layer], node.type))
+        # print(getattr(model.layers[node.layer], node.type))
         getattr(model.layers[node.layer], node.type)[node.ix] -= 1e-2
         _, loss1 = model(x_data, y_data)
         # since we are subtracted epsilon earlier
