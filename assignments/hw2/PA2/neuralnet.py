@@ -28,6 +28,9 @@ def normalize_data(img):
     """
     Normalize your inputs here and return them.
     """
+	# img is (60,000 x 784) matrix where rows = samples, cols = pixels in img
+	# normalize each column to 0 mean with unit standard deviation (z-score)
+    img = (img - np.mean(img,axis=0)) / np.std(img,axis=0)
     return img
 
 
@@ -35,7 +38,12 @@ def one_hot_encoding(labels, num_classes=10):
     """
     Encode labels using one hot encoding and return them.
     """
-    return labels
+    # labels = {0,1,...,9}
+    # labels = (60,000) column vector
+    one_hot_labels = np.zeros((labels.shape[0],num_classes))
+    for i in range(labels.shape[0]):
+        one_hot_labels[i,labels[i]] = 1
+    return one_hot_labels
 
 
 def load_data(path, mode='train'):
@@ -64,8 +72,16 @@ def softmax(x):
     Implement the softmax function here.
     Remember to take care of the overflow condition.
     """
-    raise NotImplementedError("Softmax not implemented")
-
+    # define constant to account for overflow
+    c = np.max(x)
+    # subtract c from each x to account for overflow
+    x = x - c
+    # take exponential 
+    exp_x = np.exp(x)
+    # normalize
+    y = exp_x.T / np.sum(exp_x,axis=1)
+    # return
+    return y.T
 
 class Activation():
     """
@@ -94,6 +110,8 @@ class Activation():
         """
         This method allows your instances to be callable.
         """
+        # instantiate input
+        self.x = a
         return self.forward(a)
 
     def forward(self, a):
@@ -128,37 +146,43 @@ class Activation():
         """
         Implement the sigmoid activation here.
         """
-        raise NotImplementedError("Sigmoid not implemented")
+        return (1 / (1 + np.exp(-x)))
 
     def tanh(self, x):
         """
         Implement tanh here.
         """
-        raise NotImplementedError("Tanh not implemented")
+        return ((np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x)))
 
     def ReLU(self, x):
         """
         Implement ReLU here.
         """
-        raise NotImplementedError("ReLu not implemented")
+        return np.maximum(x,0)
 
     def grad_sigmoid(self):
         """
         Compute the gradient for sigmoid here.
         """
-        raise NotImplementedError("Sigmoid gradient not implemented")
+        # gradient of sigmoid is s(x)(1-s(x))
+        ### think this is wrong, probably needs to be in terms of t and y like last project
+        return self.sigmoid(self.x) * (1 - self.sigmoid(self.x)) 
 
     def grad_tanh(self):
         """
         Compute the gradient for tanh here.
         """
-        raise NotImplementedError("tanh gradient not implemented")
+        # gradient of tanh is 4 / (e^x + e^-x)^2
+        return (4 / ((np.exp(self.x) + np.exp(-self.x))**2))
 
     def grad_ReLU(self):
         """
         Compute the gradient for ReLU here.
         """
-        raise NotImplementedError("ReLU gradient not implemented")
+        # x > 0, gradient = 1
+        # x <= 0, gradient = 0
+        output = (self.x > 0)
+        return output.astype(int)
 
 
 class Layer():
@@ -176,10 +200,17 @@ class Layer():
         Define the architecture and create placeholder.
         """
         np.random.seed(42)
-        self.w = None    # Declare the Weight matrix
-        self.b = None    # Create a placeholder for Bias
-        self.x = None    # Save the input to forward in this
-        self.a = None    # Save the output of forward pass in this (without activation)
+        # Declare the Weight matrix 
+        # weight matrix shape (rows = num input nodes, cols = num output nodes)
+        self.w = np.zeros((in_units,out_units))
+        # Create a placeholder for Bias
+        # bias vector shape (1, num output nodes)
+        self.b = np.zeros((1,out_units)) 
+        # Save the input to forward in this
+        self.x = None    
+        # Save the output of forward pass in this (without activation)
+        # a vector shape (1, num output nodes)
+        self.a = None    
 
         self.d_x = None  # Save the gradient w.r.t x in this
         self.d_w = None  # Save the gradient w.r.t w in this
@@ -189,6 +220,8 @@ class Layer():
         """
         Make layer callable.
         """
+        # save input to forward
+        self.x = x
         return self.forward(x)
 
     def forward(self, x):
@@ -197,7 +230,12 @@ class Layer():
         Do not apply activation here.
         Return self.a
         """
-        raise NotImplementedError("Layer forward pass not implemented.")
+        # for each layer, forward pass is just dot(w_j,x_i) + b_j
+        # this can generalize through matrix multiplication
+        # w shape assumption (in_units,out_units)
+        # x shape assumption (matrix where each row is a sample)
+        self.a = np.matmul(x,self.w) + self.b 
+        return self.a 
 
     def backward(self, delta):
         """
@@ -237,6 +275,8 @@ class Neuralnetwork():
         """
         Make NeuralNetwork callable.
         """
+        # save input to forward
+        self.x = x
         return self.forward(x, targets)
 
     def forward(self, x, targets=None):
@@ -244,13 +284,23 @@ class Neuralnetwork():
         Compute forward pass through all the layers in the network and return it.
         If targets are provided, return loss as well.
         """
-        raise NotImplementedError("Forward not implemented for NeuralNetwork")
+        # For each layer call layer.forward(x) where x is the output from
+        # previous layer
+        for l in self.layers:
+            x = l.forward(x)
+        self.y = x
+        return self.y 
 
     def loss(self, logits, targets):
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        raise NotImplementedError("Loss not implemented for NeuralNetwork")
+        # take log of y
+        ln_y = np.log(logits)
+        # multiply by targets and sum along classes axis
+        t_ln_y = np.sum(targets * ln_y,axis=1)
+        # Compute cost and normalize by number of samples/classes in data
+        return (-(np.sum(t_ln_y)) / (targets.shape[0]*targets.shape[1]))
 
     def backward(self):
         '''
@@ -267,6 +317,15 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
     Implement Early Stopping.
     Use config to set parameters for training like learning rate, momentum, etc.
     """
+    # Implement Batch Stochastic Gradient Descent (Batch = 128 samples)
+    if (x_train.shape[0] % 128 != 0):
+        num_batches = np.floor(x_train.shape[0] / 128)
+        even_split_size = num_batches * 128
+        x_train_batch = np.split(x_train[:even_split_size,:],num_batches,axis=0)
+        x_train_batch.append(x_train[-(x_train.shape[0]-even_split_size):,:])
+    else:
+        x_train_batch = np.split(x_train,x_train.shape[0]/128,axis=0)
+    
 
     raise NotImplementedError("Train method not implemented")
 
@@ -275,7 +334,12 @@ def test(model, X_test, y_test):
     """
     Calculate and return the accuracy on the test set.
     """
-
+    # run test data through model
+    #model_after_forward_prop = model.__call__(X_test)
+    # get model output
+    #model_output = model_after_forward_prop.y
+    # calculate test error
+    
     raise NotImplementedError("Test method not implemented")
 
 
@@ -291,7 +355,13 @@ if __name__ == "__main__":
     x_test,  y_test  = load_data(path="./", mode="t10k")
 
     # Create splits for validation data here.
-    # x_valid, y_valid = ...
+    # setting 20% of data as validation set
+    num_valid_samples = int(np.floor(x_train.shape[0]*(.2)))
+    end_idx = x_train.shape[0]
+    x_valid = x_train[-num_valid_samples:,:]
+    y_valid = y_train[-num_valid_samples:,:]
+    x_train = x_train[:-num_valid_samples,:]
+    y_train = y_train[:-num_valid_samples,:]
 
     # train the model
     train(model, x_train, y_train, x_valid, y_valid, config)
