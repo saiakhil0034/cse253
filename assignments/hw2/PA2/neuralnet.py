@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 
 class EvalMetrics(object):
-    """docstring for EvalMetrics"""
+    """Evaluation Metrics"""
 
     def __init__(self, arg):
         super(EvalMetrics, self).__init__()
@@ -148,10 +148,10 @@ def softmax(x):
     """
     k = np.max(x, axis=1).reshape(-1, 1)  # To avoid overflow
     x = x - k
+    # print(x)
     numerator = np.exp(x)
     denominator = np.sum(numerator, axis=1).reshape(-1, 1)
-    #print(x)
-
+    # print(x)
     return np.divide(numerator, denominator)
 
 
@@ -222,7 +222,7 @@ class Activation():
         """
         Implement the sigmoid activation here.
         """
-        #print(x)
+        # print(x)
         return 1 / (1 + np.exp(-x))
 
     def tanh(self, x):
@@ -266,7 +266,7 @@ class Layer():
         >>> gradient = fully_connected_layer.backward(delta=1.0)
     """
 
-    def __init__(self, in_units, out_units, layer_num):
+    def __init__(self, in_units, out_units, layer_num):  # layer_num
         """
         Define the architecture and create placeholder.
         """
@@ -275,9 +275,9 @@ class Layer():
         self.num_ins = in_units
         self.num_ons = out_units
         # Declare the Weight matrix
-        self.w = np.random.rand(in_units, out_units)
+        self.w = np.random.rand(in_units, out_units) * 1e-3
         # Create a placeholder for Bias
-        self.b = np.random.rand(1, out_units)
+        self.b = np.random.rand(1, out_units) * 1e-3
         self.x = None    # Save the input to forward in this
         # Save the output of forward pass in this (without activation)
         self.a = None
@@ -308,13 +308,18 @@ class Layer():
         computes gradient for its weights and the delta to pass to its previous layers.
         Return self.dx
         """
-        self.dx = delta.dot(self.w.T)
-        self.dw = self.x.T.dot(delta)
-        self.db = delta.mean(axis=0)
+        self.d_x = delta.dot(self.w.T)
+        self.d_w = self.x.T.dot(delta)
+        self.d_b = delta.sum(axis=0)
 
-        self.w -= self.dw
-        self.b -= self.db
-        return self.dx
+        self.w = 0.9 * self.w + 0.005 * self.d_w
+        self.b = 0.9 * self.b + 0.005 * self.d_b
+
+        return self.d_x
+
+    def __repr__(self):
+        # layer num : {self.layer_num},
+        return f"output :{self.a[:1]},input : {self.x[:1]})"
 
 
 class Neuralnetwork():
@@ -359,6 +364,8 @@ class Neuralnetwork():
         a = x
         for layer in self.layers:
             a = layer.forward(a)
+            # print(layer)
+
         self.y = softmax(a)
 
         self.targets = targets
@@ -372,7 +379,7 @@ class Neuralnetwork():
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        loss = (-np.multiply(np.log(logits), targets)).sum(axis=1).mean()
+        loss = (-np.multiply(np.log(logits), targets)).sum(axis=1).sum()
         return loss
 
     def backward(self):
@@ -398,15 +405,17 @@ def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10, batch_si
         for i, (data, labels) in enumerate(get_data_batch(x_train, y_train, batch_size, shuffle=True)):
             pred, loss = model(data, labels)
             model.backward()
+            break
 
         pred_valid, loss_valid = model(x_valid, y_valid)
         acc_valid = eval_metrics(pred_valid, y_valid)
         print(
             f"Epoch:{epoch+1}, Accuracy:{acc_valid}, -logloss:{loss_valid}")
+
         # early stopping criterion
-        # limit on epoch to avoid  stopping forinitial random jumps
+        # limit on epoch to avoid  stopping for initial random jumps
         if (epoch > 10):
-            if (acc_valid < eval_arr[-1].accuracy):
+            if (loss_valid < eval_arr[-1].loss):
                 break
 
         eval_arr.append(EvalMetrics([loss_valid, acc_valid]))
@@ -455,8 +464,10 @@ if __name__ == "__main__":
     x_train, y_train, x_valid, y_valid = validation_split(
         x_train, y_train, split=0.2, cross_validation=False)
 
+    # print(x_train[:1], x_train[:1].min(), x_train[:1].max())
+
     # train the model
     train(model, x_train, y_train, x_valid,
-          y_valid, config, epochs=10, batch_size=50)
+          y_valid, config, epochs=100, batch_size=10)
 
     # test_acc = test(model, x_test, y_test)
