@@ -1,0 +1,419 @@
+\documentclass{article}
+
+\usepackage{fancyhdr}
+\usepackage{extramarks}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{tikz,pgfplots}
+\usepackage[plain]{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+\usetikzlibrary{automata,positioning}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{datavisualization.formats.functions}
+\usepgfplotslibrary{fillbetween,decorations.softclip}
+\pgfplotsset{compat = newest}
+
+%
+% Basic Document Settings
+%
+
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in
+
+\linespread{1.1}
+
+\pagestyle{fancy}
+\lhead{\hmwkAuthorName}
+\chead{\hmwkTitle}
+\rhead{\firstxmark}
+\lfoot{\lastxmark}
+\cfoot{\thepage}
+
+\renewcommand\headrulewidth{0.4pt}
+\renewcommand\footrulewidth{0.4pt}
+
+\setlength\parindent{0pt}
+
+%
+% Create Problem Sections
+%
+
+\newcommand{\enterProblemHeader}[1]{
+    \nobreak\extramarks{}{Problem \arabic{#1} continued on next page\ldots}\nobreak{}
+    \nobreak\extramarks{Problem \arabic{#1} (continued)}{Problem \arabic{#1} continued on next page\ldots}\nobreak{}
+}
+
+\newcommand{\exitProblemHeader}[1]{
+    \nobreak\extramarks{Problem \arabic{#1} (continued)}{Problem \arabic{#1} continued on next page\ldots}\nobreak{}
+    \stepcounter{#1}
+    \nobreak\extramarks{Problem \arabic{#1}}{}\nobreak{}
+}
+
+\setcounter{secnumdepth}{0}
+\newcounter{partCounter}
+\newcounter{homeworkProblemCounter}
+\setcounter{homeworkProblemCounter}{1}
+\nobreak\extramarks{Problem \arabic{homeworkProblemCounter}}{}\nobreak{}
+
+%
+% Homework Problem Environment
+%
+% This environment takes an optional argument. When given, it will adjust the
+% problem counter. This is useful for when the problems given for your
+% assignment aren't sequential. See the last 3 problems of this template for an
+% example.
+%
+\newenvironment{homeworkProblem}[1][-1]{
+    \ifnum#1>0
+        \setcounter{homeworkProblemCounter}{#1}
+    \fi
+    \section{Problem \arabic{homeworkProblemCounter}}
+    \setcounter{partCounter}{1}
+    \enterProblemHeader{homeworkProblemCounter}
+}{
+    \exitProblemHeader{homeworkProblemCounter}
+}
+
+%
+% Homework Details
+%   - Title
+%   - Due date
+%   - Class
+%   - Section/Time
+%   - Instructor
+%   - Author
+%
+
+% \newcommand{\hmwkTitle}{Homework\ \#2}
+% \newcommand{\hmwkDueDate}{February 12, 2014}
+% \newcommand{\hmwkClass}{Calculus}
+% \newcommand{\hmwkClassTime}{Section A}
+% \newcommand{\hmwkClassInstructor}{Professor Isaac Newton}
+% \newcommand{\hmwkAuthorName}{\textbf{Josh Davis} \and \textbf{Davis Josh}}
+
+\newcommand{\hmwkTitle}{ Homework\ \#1}
+\newcommand{\hmwkDueDate}{11\:59 pm, Jan 20, 2020}
+\newcommand{\hmwkClass}{CSE253}
+\newcommand{\hmwkClassInstructor}{Prof. Gary W. Cottrell}
+\newcommand{\hmwkAuthorName}{\textbf{Sai Akhil Suggu, A53284020}}
+
+%
+% Title Page
+%
+
+\title{
+    \vspace{2in}
+    \textmd{\textbf{\hmwkClass:\ \hmwkTitle}}\\
+    \normalsize\vspace{0.1in}\small{Due\ on\ \hmwkDueDate\ at 11:59pm}\\
+    \vspace{0.1in}\large{\textit{\hmwkClassInstructor}}
+    \vspace{3in}
+}
+
+\author{\hmwkAuthorName}
+\date{}
+
+\renewcommand{\part}[1]{\textbf{\large Part \Alph{partCounter}}\stepcounter{partCounter}\\}
+
+%
+% Various Helper Commands
+%
+
+% Useful for algorithms
+\newcommand{\alg}[1]{\textsc{\bfseries \footnotesize #1}}
+
+% For derivatives
+\newcommand{\deriv}[1]{\frac{\mathrm{d}}{\mathrm{d}x} (#1)}
+
+% For partial derivatives
+\newcommand{\pderiv}[2]{\frac{\partial}{\partial #1} (#2)}
+
+% Integral dx
+\newcommand{\dx}{\mathrm{d}x}
+
+% Alias for the Solution section header
+\newcommand{\solution}{\textbf{\large Solution}}
+
+% Probability commands: Expectation, Variance, Covariance, Bias
+\newcommand{\E}{\mathrm{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\Bias}{\mathrm{Bias}}
+
+\begin{document}
+
+\maketitle
+
+\pagebreak
+
+\begin{homeworkProblem}
+    Consider the follwing identity involving the transformation from Cartesian to polar coordinates
+    \begin{align}
+        \prod_{i=1}^{d} \int_{-\infty}^{\infty} \exp(-x^2) dx  = S_{d} \int_{0}^{\infty} \exp(-r^2) r^{d-1} dr
+    \end{align}
+
+    where $S_{d}$ is the surface area of the unit sphere in d dimentions. By making use of
+    \begin{align}
+     \int_{-\infty}^{\infty} \exp(\frac{-\lambda x^2}{2}) dx = (\frac{2\pi}{\lambda})^{\frac{1}{2}}
+    \end{align}
+
+    Show that
+    \[ S_{d} = \frac{2\pi^{\frac{d}{2}}}{\Gamma(\frac{d}{2})}  \]
+    where $\Gamma(x)$ is  the Gamma function defined by
+    \begin{align} \Gamma(x) = \int_{0}^{\infty} u^{x-1}exp(-u) du  \end{align}
+
+    \textbf{Solution}
+
+    Using (2), when $\lambda = 2$, we have
+    \begin{align}
+     \int_{-\infty}^{\infty} \exp(-x^2) dx = (\pi)^{\frac{1}{2}}
+    \end{align}
+
+    which imples L.H.S of (1) is
+    \begin{align} \prod_{i=1}^{d} \int_{-\infty}^{\infty} \exp(-x^2) dx = (\pi)^{\frac{d}{2}} \end{align}
+
+    Considering the integral in R.H.S of (1),
+
+    \begin{align*}
+        \int_{0}^{\infty} \exp(-r^2) r^{d-1} dr &= \int_{0}^{\infty} \exp(-u) u^{\frac{d-1}{2}} \cdot \frac{du}{2\sqrt{u}}   &&\text{ (with substitution $u = r^2$)} \\
+        &= \frac{\int_{0}^{\infty} \exp(-u) u^{\frac{d}{2}-1}du}{2} \\
+        &= \frac{\Gamma(\frac{d}{2})}{2} && \text{using (3)}
+    \end{align*}
+
+    Substituting above derived values in both sides of (1),
+    \[ (\pi)^{\frac{d}{2}} = S_{d}\frac{\Gamma(\frac{d}{2})}{2} \]
+    Thus,
+    \[ S_{d} = \frac{2(\pi)^{\frac{d}{2}}}{\Gamma(\frac{d}{2})} \]
+    Hence prooved the required equation \\[0.02 in]
+
+    Sanity check :\\
+    When d = 2, circumference of circle $S_{d} = \frac{2\pi^{\frac{2}{2}}}{\Gamma(1)} = 2\pi$, consistent with our knowledge \\
+    When d = 3, surface area of sphere $S_{d} = \frac{2\pi^{\frac{3}{2}}}{\Gamma(\frac{3}{2})} = 4\pi$, consistent with our knowledge
+\end{homeworkProblem}
+
+\pagebreak
+
+\begin{homeworkProblem}
+    Show that the volume of a hypersphere of radius a in d-dimentions is given by
+    \begin{align} V_{d} =  \frac{S_{d}a^d}{d} \end{align}
+
+    Hence show that the ratio of the volume of a hypersphere of radius a to the volume of hupercude of side 2a (i.e, circumscribed hypercube) is given by
+    \begin{align} \frac{\text{Volume of sphere}}{\text{Volume of cube}} = \frac{\pi^{\frac{d}{2}}}{d2^{d-1}\Gamma(\frac{d}{2})} \end{align}
+
+    using Stirlings approximation
+    \begin{align} \Gamma(x+1) = (2\pi)^{\frac{1}{2}}\exp(-x)x^{\frac{x+1}{2}} \end{align}
+    which is valid when x is large, show that as $d \to \infty$, the ratio in (7) goes to zero. Similarly, show that the ratio of distance from centre of the hypercube to one of the corners, divided by the perpendicular distance to one of the faces is $\sqrt{d}$, and therefore goes to $\infty$ as $d \to \infty$. These results show that, in a high dimentional space, most of the volume of a cube is concentrated in the large number of corners which thmeselves become very long spikes
+    \\[0.01 in]
+    \textbf{Solution}
+    \\
+    Volume of a hypersphere can be found by integrating the the extra volume (marginal volume) we get when radius increases from r to r+dr
+
+        \begin{align*}
+        \text{Volume of hypersphere} &= \int_{0}^{a} \text{marginal volume (r $\to$ r+dr)} \\
+            &= \int_{0}^{a} S_{d}(r) dr \\
+        \end{align*}
+
+        From problem 1, we have
+        \begin{align*}
+             S_{d}(a) &=  \frac{2\pi^{d/2}a^{d-1}}{\Gamma(\frac{d}{2})}  &&\text{substituting r = ak, we get extra multiplier for $a^{d-1}$ for radius a}\\
+             &= S_{d} a^{d-1}
+        \end{align*}
+
+        Thus,
+        \begin{align*}
+        \text{Volume of hypersphere} &= \int_{0}^{a}  S_{d} r^{d-1} dr \\
+            &=  \frac{S_{d} a^d}{d} && \text{Q.E.D for (6)}
+        \end{align*}
+
+        Volume od hypercube (of length 2a) = $(2a)^d$
+
+        which implies
+        \begin{align}
+            \frac{\text{Volume of sphere}}{\text{Volume of cube}} &= \frac{S_{d} a^d}{d(2a)^{d}}\\
+            &=\frac{\pi^{\frac{d}{2}}}{d2^{d-1}\Gamma(\frac{d}{2})} &&\text{(substituing values calculated earlier)}
+        \end{align}
+
+        Thus, eqn (7) is prooved.\\
+
+        As $d \to \infty$, denominator in above equation goes to zero. From Stirling approximation, $(\frac{2}{\pi})^n\Gamma(n/2) \approx \exp(-n/2) (\frac{n-2}{2})^{n/2}$. When $n > e$, multiplier term is great than one. Thus, total product goes infinity. Thus, R.H.S of eqn (7) goes to zero.\\
+
+        In a hypercube of length 2 with centred at (0,0,0,0...0) $\in \mathbb R^d$, \\
+
+        From symmetry aorund center, all corners are at equidistance from the centre. Taking the corner (1,1,1,.....1) $\in \mathbb R^d$, distance from centre is $\sqrt{d}$
+        perpendicular from centre to face lies on coordinate axis. Thus, W.L.O.G coordinate is (1,0,0,0,0 ...0) who se distance from the centre is 1. \\
+
+        Hence ratio of these two distance is = $\sqrt{d}$ which goes to $\infty$ as $d \to \infty$
+
+        Therefore, as number of dimensions increase, most of the volume of a cube is concentrated in the large number of corners which thmeselves become very long spikes\\
+
+\end{homeworkProblem}
+\pagebreak
+
+
+\begin{homeworkProblem}
+    from Bishop Neural Networks for Pattern recognition 1.3 \\[0.05 in]
+    \textbf{Solution}
+    \\
+    Using (6), we have Volume of Sprere of radius  a,\\
+     $V_{d}(a) =  \frac{S_{d}a^d}{d}$\\
+    $V_{d}(a-\epsilon) =  \frac{S_{d}(a-\epsilon)^d}{d}$\\
+    Thus, Required fraction of volume,
+    \begin{align*}
+        f &= \frac{V_{d}(a) - V_{d}(a-\epsilon)}{V_{d}(a)}
+        \\
+        &= 1 - (\frac{a-\epsilon}{a})^d
+        \\
+        &= 1 - (1 - \frac{\epsilon}{a})^d
+    \end{align*}
+
+    Now, for any value of $\epsilon > 0$, $0 < \epsilon \leq a$,  $(1 - \frac{\epsilon}{a}) < 1$. \\
+    Thus as d $\to \infty, (1 - \frac{\epsilon}{a}) \to 0$. \\
+
+    Thus, the fraction $f \to 1$.
+    $$\lim_{d\to\infty} f = 1$$,
+
+    For $\frac{\epsilon}{a}$ = 0.01, Evaluating f numerically, \\
+    for d = 2, f =  0.0199 \\
+    for d =10, f = 0.0297 \\
+    for d =1000, f = 0.9999 \\
+
+    for fraction of volume of  the sphere indie radius = $\frac{a}{2}$, we can consider $\epsilon = \frac{a}{2}$, and for answer we need 1 - f
+    Thus, For $\frac{\epsilon}{a}$ = 0.5, Evaluating f numerically, \\
+    for d = 2, f =  0.75, 1-f = 0.25 \\
+    for d =10, f =  0.875, 1-f = 0.125 \\
+    for d =1000, $f \approx  1, 1-f = 9.33\cdot 10^{-302}$ \\
+
+    Above can be caluated much easily using \( f_{\frac{a}{2}} = (0.5)^d \)
+
+    We observe that in higher dimentions, most of the volume is near outer layer. Hence, when we sample, almost all points are concentrated near in a thin cell close to the surface
+\end{homeworkProblem}
+\pagebreak
+
+\begin{homeworkProblem}
+    from Bishop Neural Networks for Pattern recognition 1.4 \\[0.05 in]
+    \textbf{Solution}\\
+
+    Given probability density function,
+    \[ p(x)  = \frac{1}{(2\pi\sigma^2)^{\frac{1}{2}}} \exp(-\frac{\Vert x \Vert^2}{2\sigma^2}) \]
+
+    Converting to polar coordinates, we have,
+    \[ p(r)  = \frac{1}{(2\pi\sigma^2)^{\frac{1}{2}}} \exp(-\frac{r^2}{2\sigma^2}) \]
+
+    Now, probability mass inside a thin shell of radius $\epsilon$, is give by,
+    \[\rho(r) \epsilon = p(r)(V_{d}(r+\epsilon) - V_{d}(r)) =  p(r)S_{d}(r)\epsilon \\\]
+    as seen in problem 2, $S_{d}(r) = S_{d}r^{d-1}$
+    \[\rho(r) =  p(r)S_{d}(r) = \frac{S_{d}r^{d-1}}{(2\pi\sigma^2)^{\frac{1}{2}}} \exp(-\frac{r^2}{2\sigma^2}) \]
+
+    for maximum value of $\rho(r)$,
+    \begin{align*}
+    \frac{d\rho(r)}{dr} = 0  \\
+    \frac{d(r^{d-1} \exp(-\frac{r^2}{2\sigma^2}))}{r} = 0 \\
+    (d-1)r^{d-2} \exp(-\frac{r^2}{2\sigma^2}) + r^{d-1} \exp(-\frac{r^2}{2\sigma^2}) -\frac{r}{\sigma^2} =0 \\
+    (d-1) - \frac{r^2}{\sigma^2} = 0\\
+    \dot r = \sigma\sqrt{d-1}
+    \end{align*}
+
+    Observe that,
+    \[ \frac{d^2\rho(r)}{dr^2} = \frac{-2k}{\sigma^2} < 0 \]
+
+    Thus, slope is always decreaing. hence we have only ane extrema and function is maximum at that point\\
+
+
+    For large values of d, probability mass is maximum at
+    \[ \dot r \approx \sigma\sqrt{d} \]
+
+    Approximating the thin cell :\\
+    Considering the ratio,
+    \begin{align*}
+        \frac{\rho(r+\epsilon)}{\rho(r)} &= (\frac{r+\epsilon}{r})^{d-1}exp(\frac{r^2}{2\sigma^2} -\frac{(r+\epsilon)^2}{2\sigma^2}) \\
+        &= (1+ \frac{\epsilon}{r})^{d-1}exp(-\frac{2r\epsilon +\epsilon^2}{2\sigma^2}) \\
+        &=\exp( (d-1)\ln(1+ \frac{\epsilon}{r}) - \frac{d\epsilon}{r} - \frac{d\epsilon^2}{2r^2})
+    \end{align*}
+
+    When $\epsilon \ll r \implies \frac{\epsilon}{r} \approx 0 \implies \ln(1+ \frac{\epsilon}{r}) = \frac{\epsilon}{r} - \frac{\epsilon^2}{r^2}$\\
+    Thus, when d is large and as $ ln(1+x) - x \approx \frac{-x^2}{2}$,\\
+    $(d-1)\ln(1+ \frac{\epsilon}{r}) - \frac{d\epsilon}{r} \approx -d\frac{\epsilon^2}{2r^2} =\frac{\epsilon^2}{\sigma^2} $\\
+    Which implies, $\frac{\rho(r+\epsilon)}{\rho(r)} = \exp(- \frac{\epsilon^2}{\sigma^2})$
+
+    \[\rho(r+\epsilon) =  \rho(r)\exp(- \frac{\epsilon^2}{\sigma^2}) \]
+
+    which says that $\rho(r)$ decays exponentially away from its maximum\\
+
+    Also note that probability denisty is maximum at r =0, but probability mass is maximum at r = $\dot r$. That is bulk of probability mass is located in a different part of space from the region of high probability denisty
+
+
+
+
+
+\end{homeworkProblem}
+
+
+\pagebreak
+
+\begin{homeworkProblem}
+\textbf{Logistic Regression}\\ [0.03 in]
+Logistic regression is a binary classification method. Intuitively, logistic regression can be conceptualized as a single neuron reading in a d-dimensional input vector $x \in \mathbb R^d$ and producing an output y between 0 and 1 that is the system’s estimate of the conditional probability that the input is in some target category. The “neuron” is parameterized by a weight vector $w \in \mathbb R^{d+1}$, where $w_{0}$ represents the bias term (a weight from a unit that has a constant value of 1). \\[0.05 in]
+Consider the following model parametrized by w:
+\begin{align}
+    y = P(C_{1}\ |\ x) = \frac{1}{1+\exp(-w^{\top}x)} =g(w^{\top}x) \\
+    P(C_{0}\ |\ x) = 1-P(C_{1}\ |\ x) = 1-y
+\end{align}
+
+where we assume that x has been augmented by a leading 1 to represent the bias input. With the model so defined, we now define the Cross-Entropy cost function, equation (13), the quantity we want to minimize over our training examples:
+\begin{align}
+\mathbb E[w] = - \sum_{n=1}^{N} \{ t^n \ln(y^n) + (1-t^n)\ln(1-y^n) \}
+\end{align}
+Here, $t^n \in \{0, 1\}$ is the label or teaching signal for example n ($t^n = 1$ represents $x^n \in C_{1}$). We minimize this
+cost function via gradient descent.\\
+
+To do so, we need to derive the gradient of the cost function with respect to the parameters $ w_{j}$. Assuming
+we use the logistic activation function g as in equation (11), prove that this gradient is:
+\begin{align}
+-\frac{\partial E}{\partial w_{j}} = \sum_{n=1}^{N} (t^n - y^n)x_{j}^{n}
+\end{align}
+\\
+\textbf{Solution}\\
+To calculate the required derivative, let's first calculate few other required derivates
+
+\begin{align*}
+\frac{\partial y}{\partial w_{j}} = \frac{\partial g(z)}{\partial z} x_{j} &&\hspace{2cm} \text{taking $z = w^{\top}x$} \\
+\end{align*}
+
+
+
+\begin{flalign*}
+&& \frac{\partial y}{\partial w_{j}} &= \frac{\partial g(z)}{\partial z} x_{j} & \text{taking $z = w^{\top}x$}\\
+&& \frac{\partial g(z)}{\partial z} &= \frac{\exp(-z)}{(1+ \exp(-z))^2} &\text{testing}\\
+&& &= \frac{1}{1+ \exp(-z)} \cdot \frac{exp(-z)}{1+ \exp(-z)} \\
+&& &= g(z) (1-g(z))
+\end{flalign*}
+
+\begin{flalign*}
+ \frac{\partial y}{\partial w_{j}} &= \frac{\partial g(z)}{\partial z} x_{j} &  &\text{taking $z = w^{\top}x$}\\
+ \frac{\partial g(z)}{\partial z} &= \frac{\exp(-z)}{(1+ \exp(-z))^2} & &\text{testing}\\
+ &= \frac{1}{1+ \exp(-z)} \cdot \frac{exp(-z)}{1+ \exp(-z)} \\
+ &= g(z) (1-g(z))
+\end{flalign*}
+
+
+which imples,
+\begin{align*}
+\frac{\partial y^n}{\partial w_{j}} &= y^n(1-y^n)
+\end{align*}
+
+finally,
+\begin{flalign*}
+-\frac{\partial E}{\partial w_{j}} &= \sum_{n=1}^{N} \{ \frac{t^n}{y^n}\frac{\partial y^n}{\partial w_{j}} + \frac{1-t^n}{1-y^n}\frac{-\partial y^n}{\partial w_{j}} \}\\
+&= \sum_{n=1}^{N} \{\frac{t^n}{y^n} y^n(1-y^n) - \frac{1-t^n}{1-y^n} y^n(1-y^n) \}x_{j}\\
+&= \sum_{n=1}^{N} \{t^n(1-y^n) - (1-t^n)y^n \}x_{j}\\
+&= \sum_{n=1}^{N} \{t^n -y^n \}x_{j} &&  \hspace{2cm}   \text{Q.E.D}
+\end{flalign*}
+
+\end{homeworkProblem}
+
+\end{document}
