@@ -242,7 +242,7 @@ class Layer(object):
         >>> gradient = fully_connected_layer.backward(delta=1.0)
     """
 
-    def __init__(self, in_units, out_units, layer_num, learning_rate=0.005, momentum_coeff=0.9):  # layer_num
+    def __init__(self, in_units, out_units, layer_num, config):  # layer_num
         """
         Define the architecture and create placeholder.
         """
@@ -250,9 +250,11 @@ class Layer(object):
         self.layer_num = layer_num
         self.num_ins = in_units
         self.num_ons = out_units
+        self.lr = config["learning_rate"]
+        self.mc = config["momentum_gamma"] if config["momentum"] else 0
+        self.rc = config["L2_penalty"]
+        self.batch_size = config["batch_size"]
 
-        self.lr = learning_rate
-        self.mc = momentum_coeff
         # Declare the Weight matrix
         self.w = np.random.randn(in_units, out_units)
         self.b = np.zeros((1, out_units))
@@ -263,6 +265,8 @@ class Layer(object):
         self.d_x = None     # gradient w.r.t x in this
         self.d_w = None     # gradient w.r.t w in this
         self.d_b = None     # gradient w.r.t b in this
+        self.vw = 0       # Momentum term
+        self.vb = 0       # Momentum term
 
     def __call__(self, x):
         """Make layer callable."""
@@ -284,9 +288,13 @@ class Layer(object):
         computes gradient for its weights and the delta to pass to its previous layers.
         Return self.dx
         """
-        self.d_x = delta.dot(self.w.T)
-        self.d_w = self.x.T.dot(delta)
-        self.d_b = delta.sum(axis=0)
+        # We want to reduce overfitting by regularisation and bias doesn't have any effect on overfitting
+        # Thus, regularisation term is only in weights, not in biases
+
+        self.d_x = delta.dot(self.w.T)  # / self.batch_size
+        self.d_w = self.x.T.dot(delta) \
+            - self.rc * (self.w)  # / self.batch_size
+        self.d_b = delta.sum(axis=0)  # / self.batch_size
 
         return self.d_x
 
@@ -295,8 +303,11 @@ class Layer(object):
         update weigths using gradient descent
         """
 
-        self.w = self.mc * self.w + self.lr * self.d_w
-        self.b = self.mc * self.b + self.lr * self.d_b
+        self.vw = self.mc * self.vw + self.lr * self.d_w
+        self.vb = self.mc * self.vb + self.lr * self.d_b
+
+        self.w += self.vw
+        self.b += self.vb
 
     def __repr__(self):
         return f" layer num : {self.layer_num}, shape : {self.num_ins,self.num_ons}"
@@ -321,11 +332,12 @@ class Neuralnetwork(object):
         self.y = None        # Save the output vector of model in this
         self.targets = None  # Save the targets in forward in this variable
         self.num_w_layers = len(config['layer_specs']) - 1
+        self.config = config
 
         # Add layers specified by layer_specs.
         for i in range(self.num_w_layers):
             self.layers.append(
-                Layer(config['layer_specs'][i], config['layer_specs'][i + 1], i))
+                Layer(config['layer_specs'][i], config['layer_specs'][i + 1], i, config))
             if i < (self.num_w_layers - 1):
                 self.layers.append(Activation(config['activation']))
 
@@ -350,7 +362,7 @@ class Neuralnetwork(object):
         return self.y, self.loss(self.y, targets) if (targets is not None) else self.y
 
     def predict(self, x):
-        logits = self.forward(x)
+        logits, _ = self.forward(x)
         return logits.argmax(axis=1)
 
     def loss(self, logits, targets):
@@ -388,7 +400,7 @@ Feed forward Neural Network with {self.num_w_layers-1} hidden layers\n\
 ----------------------------------------------------\n"
 
 
-def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10, batch_size=50):
+def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10):
     """
     Train your model here.
     Implement batch SGD to train the model.
@@ -400,7 +412,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10, batch_si
     eval_arr = []
     for epoch in range(epochs):
 
-        for i, (data, labels) in enumerate(get_data_batch(x_train, y_train, batch_size, shuffle=True)):
+        for i, (data, labels) in enumerate(get_data_batch(x_train, y_train, config["batch_size"], shuffle=True)):
             pred, loss = model(data, labels)
             model.backward()
             model.update_network()
@@ -412,9 +424,10 @@ def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10, batch_si
 
         # early stopping criterion
         # limit on epoch to avoid  stopping for initial random jumps
-        if (epoch > 10):
-            if (loss_valid < eval_arr[-1].loss):
-                break
+        if config["early_stop"]:
+            if (epoch > config["early_stop_epoch"]):
+                if (loss_valid < eval_arr[-1].loss):
+                    break
 
         eval_arr.append(EvalMetrics([loss_valid, acc_valid]))
 
@@ -433,10 +446,10 @@ def test(model, X_test, y_test):
     """
     batchsize = 50
     correct = 0.
-    for data, label in DataBatch(X_test, y_test, batchsize, shuffle=False):
+    for data, label in get_data_batch(X_test, y_test, batchsize, shuffle=False):
         prediction = model.predict(data)
         correct += np.sum(prediction == label.argmax(axis=1))
-    return correct * 100 / testData.shape[0]
+    return correct * 100 / y_test.shape[0]
 
 
 if __name__ == "__main__":
@@ -453,8 +466,8 @@ if __name__ == "__main__":
     num_test_patterns = x_test.shape[0]
 
     print("Data :")
-    print(f"number of patterns in training data :{num_train_patterns}")
-    print(f"number of patterns in testing data :{num_test_patterns}")
+    print(
+        f"number of patterns in training data :{num_train_patterns},testing data :{num_test_patterns}")
 
     # Visualising the labels
     # plot_labels(x_train, y_train)
@@ -467,6 +480,7 @@ if __name__ == "__main__":
 
     # train the model
     train(model, x_train, y_train, x_valid,
-          y_valid, config, epochs=100, batch_size=10)
+          y_valid, config, epochs=100)
 
-    # test_acc = test(model, x_test, y_test)
+    test_acc = test(model, x_test, y_test)
+    print(test_acc)
