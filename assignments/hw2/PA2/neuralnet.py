@@ -613,7 +613,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
             if config["early_stop"] & bm_store_not:
                 if (epoch > config["early_stop_epoch"]):
                     # loss is in order of 1, hence to avoid nose this 0.1
-                    if (loss_val > np.mean(val_loss[fold, epoch - 5: epoch])):
+                    if (loss_val > np.mean(val_loss[fold, epoch - config["early_stop_epoch"]: epoch])):
                         b_config, b_model_data = model.store()
                         bm_store_not = False
 
