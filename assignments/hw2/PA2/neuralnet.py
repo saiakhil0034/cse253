@@ -39,7 +39,6 @@ def load_config(path):
 def normalize_data(img):
     """
     Normalize your inputs here and return them.
-    Here we are doing min max normalisation
     """
 	# img is (60,000 x 784) matrix where rows = samples, cols = pixels in img
 	# normalize each column to 0 mean with unit standard deviation (z-score)
@@ -285,24 +284,15 @@ class Layer():
         >>> gradient = fully_connected_layer.backward(delta=1.0)
     """
 
-    def __init__(self, in_units, out_units,lay_num):
+    def __init__(self, in_units, out_units, config):
         """
         Define the architecture and create placeholder.
         """
         np.random.seed(42)
-        """
-        # Declare the Weight matrix 
-        # weight matrix shape (rows = num input nodes, cols = num output nodes)
-        self.w = np.zeros((in_units,out_units))
-        # Create a placeholder for Bias
-        # bias vector shape (1, num output nodes)
-        self.b = np.zeros((1,out_units)) 
-        # Save the input to forward in this
-        self.x = None    
-        # Save the output of forward pass in this (without activation)
-        # a vector shape (1, num output nodes)
-        self.a = None    
-        """
+
+        # define batch size
+        self.batch_size = config['batch_size']
+        
         # Declare the Weight matrix
         # weights should be initialized with 0 mean into node j and 
         # std = sqrt(1/m) where m is fan in to next layer
@@ -356,12 +346,9 @@ class Layer():
         computes gradient for its weights and the delta to pass to its previous layers.
         Return self.dx
         """
-        self.d_x = delta.dot(self.w.T) # divide by batch size...
-        self.d_w = self.x.T.dot(delta) # divide by batch size...
-        self.d_b = delta.sum(axis=0)  # divide by batch size...
-
-        self.w = 0.9 * self.w + 0.005 * self.d_w
-        self.b = 0.9 * self.b + 0.005 * self.d_b
+        self.d_x = delta.dot(self.w.T) / self.batch_size
+        self.d_w = self.x.T.dot(delta) / self.batch_size
+        self.d_b = delta.sum(axis=0) / self.batch_size
 
         return self.d_x
 
@@ -391,7 +378,7 @@ class Neuralnetwork():
 
         # Add layers specified by layer_specs.
         for i in range(len(config['layer_specs']) - 1):
-            self.layers.append(Layer(config['layer_specs'][i], config['layer_specs'][i+1],i))
+            self.layers.append(Layer(config['layer_specs'][i], config['layer_specs'][i+1],config))
             if i < len(config['layer_specs']) - 2:
                 self.layers.append(Activation(config['activation']))
 
@@ -400,9 +387,6 @@ class Neuralnetwork():
         """
         Make NeuralNetwork callable.
         """
-        # save input to forward
-        self.x = x
-        self.targets = targets
         return self.forward(x, targets)
 
 
@@ -413,6 +397,8 @@ class Neuralnetwork():
         """
         # For each layer call layer.forward(x) where x is the output from
         # previous layer
+        self.x = x
+        self.targets = targets
         self.y = x
         for l in self.layers:
             self.y = l.forward(self.y)
@@ -421,18 +407,6 @@ class Neuralnetwork():
         self.y = softmax(self.y)
             
         return self.y, self.loss(self.y, targets) if targets is not None else self.y         
-        """
-        self.x = x
-        a = x
-        for layer in self.layers:
-            a = layer.forward(a)
-            # print(layer)
-
-        self.y = softmax(a)
-
-        self.targets = targets
-        return self.y, self.loss(self.y, targets) if targets is not None else self.y
-        """
 
 
     def predict(self, x):
@@ -449,7 +423,7 @@ class Neuralnetwork():
         # multiply by targets and sum along classes axis
         t_ln_y = np.sum(targets * ln_y,axis=1)
         # Compute cost and normalize by number of samples/classes in data
-        return (-(np.sum(t_ln_y)) / (targets.shape[0]*targets.shape[1]))
+        return (-(np.sum(t_ln_y)) / (targets.shape[0])) #*targets.shape[1]))
         #loss = -(np.multiply(np.log(logits), targets)).sum(axis=1).sum()
         #return loss
 
@@ -483,11 +457,23 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
     """
     batch_size = config['batch_size']
     epochs = config['epochs']
+    alpha = config['learning_rate']
     eval_arr = []
     for epoch in range(epochs):
+        output_layer = True
         for i, (data, labels) in enumerate(get_data_batch(x_train, y_train, batch_size, shuffle=True)):
+            # Problem 3B
+            # data = data[0,:]
+            # labels = labels[0,:]
             pred, loss = model(data, labels)
             model.backward()
+            # update weights
+            for layer in model.layers[::-1]:
+                if (hasattr(layer,'activation_type')):
+                    continue
+                else:
+                    layer.w = layer.w + alpha * layer.d_w
+                    layer.b = layer.b + alpha * layer.d_b
 
         pred_valid, loss_valid = model(x_valid, y_valid)
         acc_valid = eval_metrics(pred_valid, y_valid)
@@ -496,9 +482,9 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
 
         # early stopping criterion
         # limit on epoch to avoid  stopping for initial random jumps
-        if (epoch > 10):
-            if (loss_valid < eval_arr[-1].loss):
-                break
+        #if (epoch > 10):
+        #    if (loss_valid < eval_arr[-1].loss):
+        #        break
 
         eval_arr.append(EvalMetrics([loss_valid, acc_valid]))
 
