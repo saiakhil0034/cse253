@@ -555,7 +555,7 @@ def check_num_grad(x_train, y_train, model, config):
 
         print(f"numerical gradient : {num_grad}")
         print(f"gradient from backprop : {bp_grad}")
-        print(f"differece : {num_grad - bp_grad}")
+        print(f"differece : {num_grad - bp_grad}\n")
 
 
 if __name__ == "__main__":
