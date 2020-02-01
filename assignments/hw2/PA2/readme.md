@@ -1,8 +1,8 @@
-# CSE 253 Assignment 2
-# Students : Alexander Behnke(A53304866, abehnke@eng.ucsd.edu), Sai Akhil Suggu (A53284020, ssuggu@ucsd.edu),
-# Professor : Prof. Gary Cottrell
-# Last change date : Feb 1st, 2020
-# Git repo : https://github.com/saiakhil0034/cse253/tree/master/assignments/hw2/PA2
+# CSE 253           : Programming Assignment 2
+# Students          : Alexander Behnke(A53304866, abehnke@eng.ucsd.edu), Sai Akhil Suggu (A53284020, ssuggu@ucsd.edu)
+# Professor         : Prof. Gary Cottrell
+# Last change date  : Feb 1st, 2020
+# Git repo          : https://github.com/saiakhil0034/cse253/tree/master/assignments/hw2/PA2
 
 
 runnable_file : neuralnet.py

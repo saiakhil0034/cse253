@@ -1,15 +1,9 @@
 ################################################################################
-# CSE 253: Programming Assignment 2
-# Code snippet by Manjot Bilkhu
-# Winter 2020
-################################################################################
-# We've provided you with the dataset in PA2.zip
-################################################################################
-# To install PyYaml, refer to the instructions for your system:
-# https://pyyaml.org/wiki/PyYAMLDocumentation
-################################################################################
-# If you don't have NumPy installed, please use the instructions here:
-# https://scipy.org/install.html
+# CSE 253           : Programming Assignment 2
+# Students          : Alexander Behnke(A53304866, abehnke@eng.ucsd.edu), Sai Akhil Suggu (A53284020, ssuggu@ucsd.edu)
+# Professor         : Prof. Gary Cottrell
+# Last change date  : Feb 1st, 2020
+# Git repo          : https://github.com/saiakhil0034/cse253/tree/master/assignments/hw2/PA2
 ################################################################################
 
 import os
