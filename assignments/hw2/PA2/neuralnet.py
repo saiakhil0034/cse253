@@ -141,12 +141,12 @@ def split_training_data(x_train, y_train, k):
     # is the subset number and values are the images or targets
     img_data = {}
     target_data = {}
-    pixels_per_subset = int(np.floor(x_train.shape[0] / k))
+    images_per_subset = int(np.floor(x_train.shape[0] / k))
     curr_subset = 0
     for i in range(k):
         # find beginning and ending index for each subset
-        begin_idx = int(curr_subset * pixels_per_subset)
-        end_idx = int(begin_idx + pixels_per_subset)
+        begin_idx = int(curr_subset * images_per_subset)
+        end_idx = int(begin_idx + images_per_subset)
         # populate dictionaries
         img_data[curr_subset] = x_train[begin_idx:end_idx, :]
         target_data[curr_subset] = y_train[begin_idx:end_idx, :]
@@ -495,23 +495,13 @@ def eval_metrics(y_pred, y_actual):
 def cv_fold_data(data, targets, fold, k):
     # Grab validation set (20 % of data)
     test_idx = (fold + 1) % k
-    val_data = np.concatenate((data[fold], data[test_idx]), axis=0)
-    val_target = np.concatenate((targets[fold], targets[test_idx]), axis=0)
+    val_data = data[fold]  # np.concatenate((, data[test_idx]), axis=0)
+    val_target = targets[fold]  # np.concatenate((, targets[test_idx]), axis=0)
 
     # Grab training set
-    first_flag = True
-    for i in range(k):
-        # if key isnt val or test model add to training data
-        if (i != fold) and (i != test_idx):
-            # if not first training subset
-            if (first_flag):
-                first_flag = False
-                train_data = data[i]
-                train_target = targets[i]
-            else:
-                train_data = np.concatenate((train_data, data[i]), axis=0)
-                train_target = np.concatenate(
-                    (train_target, targets[i]), axis=0)
+    train_data = np.vstack([data[i] for i in range(k) if (i != fold)])
+    train_target = np.vstack([targets[i] for i in range(k) if (i != fold)])
+
     return train_data, train_target, val_data, val_target
 
 
@@ -527,7 +517,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
     epochs = config['epochs']
 
     # Step 1: Split images in K subsections
-    data, targets = split_training_data(x_train, y_train, k)
+    input_data, targets = split_training_data(x_train, y_train, k)
 
     # Store loss/accuracy for each epoch per fold so we can calculate average
     # accuracy/loss matrices: shape (k x num_epochs)
@@ -550,7 +540,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
         model = Neuralnetwork(config)
 
         train_data, train_target, val_data, val_target = cv_fold_data(
-            data, targets, fold, k)
+            input_data, targets, fold, k)
         print(train_data.shape)
 
         # z-scoring the fold dataset (optional)
