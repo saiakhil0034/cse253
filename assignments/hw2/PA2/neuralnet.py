@@ -494,7 +494,7 @@ def eval_metrics(y_pred, y_actual):
 
 def cv_fold_data(data, targets, fold, k):
     # Grab validation set (20 % of data)
-    test_idx = (fold + 1) % k
+    # test_idx = (fold + 1) % k
     val_data = data[fold]  # np.concatenate((, data[test_idx]), axis=0)
     val_target = targets[fold]  # np.concatenate((, targets[test_idx]), axis=0)
 
