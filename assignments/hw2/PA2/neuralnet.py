@@ -556,12 +556,12 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
             pred_val, loss_val = model(val_data, val_target)
             val_acc[fold,m] = eval_metrics(pred_val, val_target)
             val_loss[fold,m] = loss_val
-            print(f"Epoch:{m+1}, Accuracy:{val_acc[fold,m+1]}, loss:{val_loss[fold,m+1]}")
+            print(f"Epoch:{m}, Accuracy:{val_acc[fold,m]}, loss:{val_loss[fold,m]}")
     
             # Save model with lowest validation loss and use this to compute best 
             # test performance for this fold
-            if (val_loss[fold,m+1] < best_model_loss):
-                best_model_loss = val_loss[fold,m+1]
+            if (val_loss[fold,m] < best_model_loss):
+                best_model_loss = val_loss[fold,m]
                 """
                 # save current weights in case best weights
                 for layer in model.layers:
