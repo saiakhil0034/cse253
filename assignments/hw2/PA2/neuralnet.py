@@ -460,6 +460,24 @@ class Neuralnetwork(object):
             if layer.__class__.__name__ == "Layer":
                 layer.update_weights()
 
+    def store(self):
+        config = self.config
+        layers_store = [(layer.w.copy(), layer.b.copy())
+                        for layer in self.layers if layer.__class__.__name__ == "Layer"]
+        return (config, layers_store)
+
+    @classmethod
+    def makeit(cls, config, layers):
+        print(len(layers))
+        modeln = cls(config)
+        ind = 0
+        for i in range(len(modeln.layers)):
+            if (modeln.layers[i].__class__.__name__ == "Layer"):
+                modeln.layers[i].w = layers[ind][0]
+                modeln.layers[i].b = layers[ind][1]  # .reshape(1, -1)
+                ind += 1
+        return modeln
+
     def __repr__(self):
         hidden_layer_str = "\n\t\t".join([repr(i) for i in self.layers])
         return f"Neural Network \n\
@@ -541,7 +559,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
 
         train_data, train_target, val_data, val_target = cv_fold_data(
             input_data, targets, fold, k)
-        print(train_data.shape)
+        # print(train_data.shape)
 
         # z-scoring the fold dataset (optional)
         # Get training mean and std
@@ -566,6 +584,9 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
 
         # define best model loss per fold
         best_model_loss = float("inf")
+        # print(model.store())
+        b_config, b_model_data = model.store()
+        bm_store_not = True
 
         # Call gradient descent to train weights for num_epochs times
         # Minibatch GD with momentum and regularization
@@ -589,11 +610,12 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
 
             # early stopping criterion
             # limit on epoch to avoid  stopping for initial random jumps
-            if config["early_stop"]:
+            if config["early_stop"] & bm_store_not:
                 if (epoch > config["early_stop_epoch"]):
                     # loss is in order of 1, hence to avoid nose this 0.1
-                    if (loss_val > np.mean(val_loss[fold, epoch - 10: epoch])):
-                        break
+                    if (loss_val > np.mean(val_loss[fold, epoch - 5: epoch])):
+                        b_config, b_model_data = model.store()
+                        bm_store_not = False
 
             # print(
             #     f"Epoch:{epoch}, Accuracy:{val_acc[fold,epoch]}, loss:{val_loss[fold,epoch]}")
@@ -611,8 +633,11 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
                         best_weights[layer_num] = layer.w
                         best_bias[layer_num] = layer.b
                 """
-                pred_test, loss_test = model(test_data, test_target)
-                test_acc_per_fold[fold] = eval_metrics(pred_test, test_target)
+        # getting the best model from saved values
+        model = Neuralnetwork.makeit(b_config, b_model_data)
+
+        pred_test, loss_test = model(test_data, test_target)
+        test_acc_per_fold[fold] = eval_metrics(pred_test, test_target)
 
     # Calculating mean and stds across folds
     avg_train_loss = np.mean(train_loss, axis=0)
