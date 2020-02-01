@@ -524,10 +524,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
     """
 
     # define congif parameters
-    batch_size = config['batch_size']
     epochs = config['epochs']
-    alpha = config['learning_rate']
-    mom_gamma = config['momentum_gamma']
 
     # Step 1: Split images in K subsections
     data, targets = split_training_data(x_train, y_train, k)
@@ -554,6 +551,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
 
         train_data, train_target, val_data, val_target = cv_fold_data(
             data, targets, fold, k)
+        print(train_data.shape)
 
         # z-scoring the fold dataset (optional)
         # Get training mean and std
