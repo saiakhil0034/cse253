@@ -257,6 +257,8 @@ class Layer(object):
 
         # Declare the Weight matrix
         self.w = np.random.randn(in_units, out_units)
+        self.w = (self.w - np.mean(self.w, axis=0)) / \
+            (np.std(self.w, axis=0) * np.sqrt(in_units))
         self.b = np.zeros((1, out_units))
 
         self.x = None       # input to forward
@@ -291,10 +293,10 @@ class Layer(object):
         # We want to reduce overfitting by regularisation and bias doesn't have any effect on overfitting
         # Thus, regularisation term is only in weights, not in biases
 
-        self.d_x = delta.dot(self.w.T)  # / self.batch_size
+        self.d_x = delta.dot(self.w.T) / self.batch_size
         self.d_w = self.x.T.dot(delta) \
-            - self.rc * (self.w)  # / self.batch_size
-        self.d_b = delta.sum(axis=0)  # / self.batch_size
+            - self.rc * (self.w) / self.batch_size  # regularisation term
+        self.d_b = delta.sum(axis=0) / self.batch_size
 
         return self.d_x
 
@@ -369,7 +371,7 @@ class Neuralnetwork(object):
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        loss = (-np.multiply(np.log(logits), targets)).sum(axis=1).sum()
+        loss = (-np.multiply(np.log(logits), targets)).sum(axis=1).mean()
         return loss
 
     def backward(self):
@@ -426,7 +428,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10):
         # limit on epoch to avoid  stopping for initial random jumps
         if config["early_stop"]:
             if (epoch > config["early_stop_epoch"]):
-                if (loss_valid < eval_arr[-1].loss):
+                if (loss_valid > eval_arr[-1].loss + 0.1):
                     break
 
         eval_arr.append(EvalMetrics([loss_valid, acc_valid]))
