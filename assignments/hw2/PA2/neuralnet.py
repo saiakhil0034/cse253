@@ -650,7 +650,7 @@ def plot(x_data, y_data_arr, e_data_arr, **kwargs):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for data, error in zip(y_data_arr, e_data_arr):
-        ax.errorbar(x_axis, data, yerr=error, errorevery=10)
+        ax.errorbar(x_data, data, yerr=error, errorevery=10)
 
     ax.legend(kwargs["legend"])
     ax.set_xlabel(kwargs["x_label"])
