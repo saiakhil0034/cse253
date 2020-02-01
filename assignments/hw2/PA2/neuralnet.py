@@ -293,10 +293,10 @@ class Layer(object):
         # We want to reduce overfitting by regularisation and bias doesn't have any effect on overfitting
         # Thus, regularisation term is only in weights, not in biases
 
-        self.d_x = delta.dot(self.w.T) / self.batch_size
+        self.d_x = delta.dot(self.w.T)  # / self.batch_size
         self.d_w = self.x.T.dot(delta) \
-            - self.rc * (self.w) / self.batch_size  # regularisation term
-        self.d_b = delta.sum(axis=0) / self.batch_size
+            - self.rc * (self.w)  # / self.batch_size  # regularisation term
+        self.d_b = delta.sum(axis=0).reshape(1, -1)  # / self.batch_size
 
         return self.d_x
 
@@ -379,7 +379,7 @@ class Neuralnetwork(object):
         Implement backpropagation here.
         Call backward methods of individual layer's.
         '''
-        delta = self.targets - self.y
+        delta = (self.targets - self.y) / self.y.shape[0]
         for layer in self.layers[::-1]:
             delta = layer.backward(delta)
 
@@ -454,6 +454,110 @@ def test(model, X_test, y_test):
     return correct * 100 / y_test.shape[0]
 
 
+def plot(x_data, y_data_arr, e_data_arr, **kwargs):
+    """ Plotting function """
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    for data, error in zip(y_data_arr, kwargs["e_data_arr"]):
+        ax.errorbar(x_axis, data, yerr=error, errorevery=10)
+
+    ax.legend(kwargs["legend"])
+    ax.set_xlabel(kwargs["x_label"])
+    ax.set_ylabel(kwargs["y_label"])
+    ax.set_title(kwargs["title"])
+    ax.grid()
+    plt.show()
+
+
+def plot_curves(train_loss, val_loss, train_acc, val_acc):
+    """
+    Loss and Performance Plots Function
+    General Info: This function plots all needed graphs
+    Input:
+        - training_set: numpy array of floats
+    """
+    # define x-axis using number of epochs
+    x_axis = np.arange(train_loss.shape[1])
+
+    # Average the train/val loss and accuracy from all k trials
+    # Plot average and std of training and validation curves
+    avg_train_loss = np.mean(train_loss, axis=0)
+    std_train_loss = np.std(train_loss, axis=0)
+    avg_val_loss = np.mean(val_loss, axis=0)
+    std_val_loss = np.std(val_loss, axis=0)
+    avg_train_acc = np.mean(train_acc, axis=0)
+    std_train_acc = np.std(train_acc, axis=0)
+    avg_val_acc = np.mean(val_acc, axis=0)
+    std_val_acc = np.std(val_acc, axis=0)
+
+    # Plot average train/val loss
+    loss_data_arr = [avg_train_loss, avg_val_loss]
+    loss_kwargs = {
+        "e_data_arr": [std_train_loss, std_val_loss],
+        "legend": ['Avg Training Loss', 'Avg Val Loss'],
+        "x_label": 'Number of Epochs',
+        "y_label": 'Negative Cross Entropy Error',
+        "title": "'Average Training and Validation Loss'"
+    }
+    plot(x_axis, loss_data_arr, **loss_kwargs)
+
+    # plot average train/val accuracy
+    acc_data_arr = [avg_train_acc, avg_val_acc]
+    acc_kwargs = {
+        "e_data_arr": [std_train_acc, std_val_acc],
+        "legend": ['Avg Training Accuracy', 'Avg Val Accuracy'],
+        "x_label": 'Number of Epochs',
+        "y_label": 'Accuracy',
+        "title": "'Average Training and Validation Accuracy'"
+    }
+    plot(x_axis, acc_data_arr, **acc_kwargs)
+
+
+class Node(object):
+    """Node class for storing layer,position and type used in part b"""
+
+    def __init__(self, layer, ix, type):
+        super(Node, self).__init__()
+        self.layer = layer
+        self.ix = ix
+        self.type = type
+
+
+def check_num_grad(x_train, y_train, model, config):
+    # Choosing one hidden layer for these calculations
+    x_data = []
+    y_data = []
+    for i in range(y_train.shape[1]):
+        x_data.append(x_train[(y_train[:, i] == 1)][:10])
+        y_data.append(y_train[(y_train[:, i] == 1)][:10])
+
+    x_data = np.vstack(x_data)
+    y_data = np.vstack(y_data)
+
+    chosen_nodes = [Node(2, (0, 5), "b"), Node(0, (0, 50), "b"),
+                    Node(2, (30, 7), "w"), Node(2, (70, 3), "w"),
+                    Node(0, (300, 30), "w"), Node(0, (500, 70), "w")]
+
+    for node in chosen_nodes:
+        print(f"layer : {node.layer}, position : {node.ix}")
+        #print(getattr(model.layers[node.layer], node.type))
+        getattr(model.layers[node.layer], node.type)[node.ix] -= 1e-2
+        _, loss1 = model(x_data, y_data)
+        # since we are subtracted epsilon earlier
+        getattr(model.layers[node.layer], node.type)[node.ix] += 2e-2
+        _, loss2 = model(x_data, y_data)
+        num_grad = (loss2 - loss1) / (2e-2)
+        # brining back to original
+        getattr(model.layers[node.layer], node.type)[node.ix] -= 1e-2
+        model(x_data, y_data)
+        model.backward()
+        bp_grad = -getattr(model.layers[node.layer], f"d_{node.type}")[node.ix]
+
+        print(f"numerical gradient : {num_grad}")
+        print(f"gradient from backprop : {bp_grad}")
+        print(f"differece : {num_grad - bp_grad}")
+
+
 if __name__ == "__main__":
     # Load the configuration.
     config = load_config("./config.yaml")
@@ -474,15 +578,18 @@ if __name__ == "__main__":
     # Visualising the labels
     # plot_labels(x_train, y_train)
 
-    # Create splits for validation data here.
-    x_train, y_train, x_valid, y_valid = validation_split(
-        x_train, y_train, split=0.2, cross_validation=False)
+    # Check numerical gradient approximation
+    check_num_grad(x_train, y_train, model, config)
 
-    # print(x_train[:1], x_train[:1].min(), x_train[:1].max())
+    # # Create splits for validation data here.
+    # x_train, y_train, x_valid, y_valid = validation_split(
+    #     x_train, y_train, split=0.2, cross_validation=False)
 
-    # train the model
-    train(model, x_train, y_train, x_valid,
-          y_valid, config, epochs=100)
+    # # print(x_train[:1], x_train[:1].min(), x_train[:1].max())
 
-    test_acc = test(model, x_test, y_test)
-    print(test_acc)
+    # # train the model
+    # train(model, x_train, y_train, x_valid,
+    #       y_valid, config, epochs=100)
+
+    # test_acc = test(model, x_test, y_test)
+    # print(test_acc)
