@@ -82,16 +82,13 @@ def load_data(path, mode='train'):
 
 
 def reverse_one_hot_encoding(labels):
-    """
-    reversing the one hot encoding
-    """
+    """reversing the one hot encoding"""
+
     return labels.argmax(axis=1)
 
 
 def plot_labels(data, labels):
-    """
-    visulaising the labels
-    """
+    """visulaising the labels"""
     pure_labels = reverse_one_hot_encoding(labels)
     plot_data = [data[list(pure_labels).index(x)]
                  for x in sorted(set(pure_labels))]
@@ -112,9 +109,7 @@ def plot_labels(data, labels):
 
 
 def validation_split(train_x, train_y, split=0.2, cross_validation=False):
-    """
-    splitting the training data for validation (cross validation)
-    """
+    """splitting the training data for validation (cross validation)"""
     num_train_patterns = train_x.shape[0]
     if cross_validation:
         pass
@@ -128,9 +123,8 @@ def validation_split(train_x, train_y, split=0.2, cross_validation=False):
 
 
 def get_data_batch(data, targets, batchsize, shuffle=True):
-    """
-    # Generator for batches of data
-    """
+    """# Generator for batches of data"""
+
     n = data.shape[0]
     if shuffle:
         indices = np.random.permutation(n)
@@ -155,7 +149,7 @@ def softmax(x):
     return np.divide(numerator, denominator)
 
 
-class Activation():
+class Activation(object):
     """
     The class implements different types of activation functions for
     your neural network layers.
@@ -167,9 +161,7 @@ class Activation():
     """
 
     def __init__(self, activation_type="sigmoid"):
-        """
-        Initialize activation type and placeholders here.
-        """
+        """Initialize activation type and placeholders here."""
         if activation_type not in ["sigmoid", "tanh", "ReLU"]:
             raise NotImplementedError(f"{activation_type} is not implemented.")
 
@@ -180,16 +172,12 @@ class Activation():
         self.y = None
 
     def __call__(self, a):
-        """
-        This method allows your instances to be callable.
-        """
+        """This method allows your instances to be callable."""
         return self.forward(a)
 
     def forward(self, a):
-        """
-        Compute the forward pass.
-        """
-        # print(a)
+        """Compute the forward pass."""
+
         self.x = a
         self.y = None
         if self.activation_type == "sigmoid":
@@ -204,9 +192,7 @@ class Activation():
         return self.y
 
     def backward(self, delta):
-        """
-        Compute the backward pass.
-        """
+        """Compute the backward pass."""
         if self.activation_type == "sigmoid":
             grad = self.grad_sigmoid()
 
@@ -219,44 +205,34 @@ class Activation():
         return grad * delta
 
     def sigmoid(self, x):
-        """
-        Implement the sigmoid activation here.
-        """
-        # print(x)
+        """Implement the sigmoid activation here."""
         return 1 / (1 + np.exp(-x))
 
     def tanh(self, x):
-        """
-        Implement tanh here.
-        """
+        """Implement tanh here."""
         return np.tanh(x)
 
     def ReLU(self, x):
-        """
-        Implement ReLU here.
-        """
+        """Implement ReLU here."""
         return x * (x > 0)
 
     def grad_sigmoid(self):
-        """
-        Compute the gradient for sigmoid here.
-        """
+        """Compute the gradient for sigmoid here."""
         return np.multiply(self.y, (1 - self.y))
 
     def grad_tanh(self):
-        """
-        Compute the gradient for tanh here.
-        """
+        """Compute the gradient for tanh here."""
         return 1 - (self.y**2)
 
     def grad_ReLU(self):
-        """
-        Compute the gradient for ReLU here.
-        """
+        """Compute the gradient for ReLU here."""
         return 1 * (self.y > 0)
 
+    def __repr__(self):
+        return f" layer activation : {self.activation_type}"
 
-class Layer():
+
+class Layer(object):
     """
     This class implements Fully Connected layers for your neural network.
 
@@ -266,7 +242,7 @@ class Layer():
         >>> gradient = fully_connected_layer.backward(delta=1.0)
     """
 
-    def __init__(self, in_units, out_units, layer_num):  # layer_num
+    def __init__(self, in_units, out_units, layer_num, learning_rate=0.005, momentum_coeff=0.9):  # layer_num
         """
         Define the architecture and create placeholder.
         """
@@ -274,22 +250,22 @@ class Layer():
         self.layer_num = layer_num
         self.num_ins = in_units
         self.num_ons = out_units
-        # Declare the Weight matrix
-        self.w = np.random.rand(in_units, out_units) * 1e-3
-        # Create a placeholder for Bias
-        self.b = np.random.rand(1, out_units) * 1e-3
-        self.x = None    # Save the input to forward in this
-        # Save the output of forward pass in this (without activation)
-        self.a = None
 
-        self.d_x = None  # Save the gradient w.r.t x in this
-        self.d_w = None  # Save the gradient w.r.t w in this
-        self.d_b = None  # Save the gradient w.r.t b in this
+        self.lr = learning_rate
+        self.mc = momentum_coeff
+        # Declare the Weight matrix
+        self.w = np.random.randn(in_units, out_units)
+        self.b = np.zeros((1, out_units))
+
+        self.x = None       # input to forward
+        self.a = None       # output of forward pass(without activation)
+
+        self.d_x = None     # gradient w.r.t x in this
+        self.d_w = None     # gradient w.r.t w in this
+        self.d_b = None     # gradient w.r.t b in this
 
     def __call__(self, x):
-        """
-        Make layer callable.
-        """
+        """Make layer callable."""
         return self.forward(x)
 
     def forward(self, x):
@@ -312,17 +288,21 @@ class Layer():
         self.d_w = self.x.T.dot(delta)
         self.d_b = delta.sum(axis=0)
 
-        self.w = 0.9 * self.w + 0.005 * self.d_w
-        self.b = 0.9 * self.b + 0.005 * self.d_b
-
         return self.d_x
 
+    def update_weights(self):
+        """
+        update weigths using gradient descent
+        """
+
+        self.w = self.mc * self.w + self.lr * self.d_w
+        self.b = self.mc * self.b + self.lr * self.d_b
+
     def __repr__(self):
-        # layer num : {self.layer_num},
-        return f"output :{self.a[:1]},input : {self.x[:1]})"
+        return f" layer num : {self.layer_num}, shape : {self.num_ins,self.num_ons}"
 
 
-class Neuralnetwork():
+class Neuralnetwork(object):
     """
     Create a Neural Network specified by the input configuration.
 
@@ -350,9 +330,8 @@ class Neuralnetwork():
                 self.layers.append(Activation(config['activation']))
 
     def __call__(self, x, targets=None):
-        """
-        Make NeuralNetwork callable.
-        """
+        """Make NeuralNetwork callable."""
+
         return self.forward(x, targets)
 
     def forward(self, x, targets=None):
@@ -364,12 +343,11 @@ class Neuralnetwork():
         a = x
         for layer in self.layers:
             a = layer.forward(a)
-            # print(layer)
 
         self.y = softmax(a)
 
         self.targets = targets
-        return self.y, self.loss(self.y, targets) if targets is not None else self.y
+        return self.y, self.loss(self.y, targets) if (targets is not None) else self.y
 
     def predict(self, x):
         logits = self.forward(x)
@@ -391,6 +369,24 @@ class Neuralnetwork():
         for layer in self.layers[::-1]:
             delta = layer.backward(delta)
 
+    def update_network(self):
+        """
+        updatting weights of the network
+        """
+        for layer in self.layers:
+            if layer.__class__.__name__ == "Layer":
+                layer.update_weights()
+
+    def __repr__(self):
+        hidden_layer_str = "\n\t\t".join([repr(i) for i in self.layers])
+        return f"Neural Network \n\
+-----------------------------------------------------\n\
+Feed forward Neural Network with {self.num_w_layers-1} hidden layers\n\
+    number of inputs : {self.layers[0].num_ins}\n\
+    number of classes : {self.layers[-1].num_ons}\n\
+    hidden layers :\n\t\t{hidden_layer_str}\n\
+----------------------------------------------------\n"
+
 
 def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10, batch_size=50):
     """
@@ -399,18 +395,20 @@ def train(model, x_train, y_train, x_valid, y_valid, config, epochs=10, batch_si
     Implement Early Stopping.
     Use config to set parameters for training like learning rate, momentum, etc.
     """
+    print(f"\nCurrent Model : {model}")
+    print(f"used config : \n{config}\n")
     eval_arr = []
     for epoch in range(epochs):
 
         for i, (data, labels) in enumerate(get_data_batch(x_train, y_train, batch_size, shuffle=True)):
             pred, loss = model(data, labels)
             model.backward()
-            break
+            model.update_network()
 
         pred_valid, loss_valid = model(x_valid, y_valid)
         acc_valid = eval_metrics(pred_valid, y_valid)
         print(
-            f"Epoch:{epoch+1}, Accuracy:{acc_valid}, -logloss:{loss_valid}")
+            f"Epoch:{epoch+1:3}, Accuracy:{acc_valid:7.3f}, -logloss:{loss_valid:.3f}")
 
         # early stopping criterion
         # limit on epoch to avoid  stopping for initial random jumps
@@ -454,6 +452,7 @@ if __name__ == "__main__":
     num_train_patterns = x_train.shape[0]
     num_test_patterns = x_test.shape[0]
 
+    print("Data :")
     print(f"number of patterns in training data :{num_train_patterns}")
     print(f"number of patterns in testing data :{num_test_patterns}")
 
