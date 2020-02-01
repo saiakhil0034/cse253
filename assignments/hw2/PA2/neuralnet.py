@@ -350,10 +350,10 @@ class Layer(object):
         # We want to reduce overfitting by regularisation and bias doesn't have any effect on overfitting
         # Thus, regularisation term is only in weights, not in biases
 
-        self.d_x = delta.dot(self.w.T)  # / self.batch_size
+        self.d_x = delta.dot(self.w.T)
         self.d_w = self.x.T.dot(delta) \
-            - self.rc * (self.w)  # / self.batch_size  # regularisation term
-        self.d_b = delta.sum(axis=0).reshape(1, -1)  # / self.batch_size
+            - self.rc * (self.w)    # regularisation term
+        self.d_b = delta.sum(axis=0).reshape(1, -1)
 
         return self.d_x
 
@@ -675,10 +675,10 @@ def plot_curves(avg_train_loss, std_train_loss, avg_val_loss,  std_val_loss,
     loss_data_arr = [avg_train_loss, avg_val_loss]
     loss_kwargs = {
         "e_data_arr": [std_train_loss, std_val_loss],
-        "legend": ['Avg Training Loss', 'Avg Val Loss'],
+        "legend": ['Training', 'Validation'],
         "x_label": 'Number of Epochs',
-        "y_label": 'Avg Negative Cross Entropy Error',
-        "title": "'Average Training and Validation Loss'"
+        "y_label": 'Cross Entropy Loss',
+        "title": " Plotting Loss across epoches"
     }
     plot(x_axis, loss_data_arr, **loss_kwargs)
 
@@ -686,10 +686,10 @@ def plot_curves(avg_train_loss, std_train_loss, avg_val_loss,  std_val_loss,
     acc_data_arr = [avg_train_acc, avg_val_acc]
     acc_kwargs = {
         "e_data_arr": [std_train_acc, std_val_acc],
-        "legend": ['Avg Training Accuracy', 'Avg Val Accuracy'],
+        "legend": ['Training', 'Validation'],
         "x_label": 'Number of Epochs',
         "y_label": 'Accuracy',
-        "title": "'Average Training and Validation Accuracy'"
+        "title": " Plotting Accuracy across epoches"
     }
     plot(x_axis, acc_data_arr, **acc_kwargs)
 
