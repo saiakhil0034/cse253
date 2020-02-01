@@ -437,7 +437,7 @@ class Neuralnetwork(object):
         ln_y = np.log(logits)
         # multiply by targets and sum along classes axis
         #
-        t_ln_y = np.sum(np.multiply(targets, ln_y), axis=1)
+        t_ln_y = -np.sum(np.multiply(targets, ln_y), axis=1)
         # Compute cost and normalize by number of samples in data
         return t_ln_y.mean()
 
@@ -592,7 +592,7 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
             if config["early_stop"]:
                 if (epoch > config["early_stop_epoch"]):
                     # loss is in order of 1, hence to avoid nose this 0.1
-                    if (loss_val > val_loss[fold, epoch - 1] + 0.1):
+                    if (loss_val > np.mean(val_loss[fold, epoch - 10: epoch])):
                         break
 
             # print(
