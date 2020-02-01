@@ -649,7 +649,7 @@ def plot(x_data, y_data_arr, e_data_arr, **kwargs):
     """ Plotting function """
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    for data, error in zip(y_data_arr, kwargs["e_data_arr"]):
+    for data, error in zip(y_data_arr, e_data_arr):
         ax.errorbar(x_axis, data, yerr=error, errorevery=10)
 
     ax.legend(kwargs["legend"])
@@ -669,7 +669,7 @@ def plot_curves(avg_train_loss, std_train_loss, avg_val_loss,  std_val_loss,
         - training_set: numpy array of floats
     """
     # define x-axis using number of epochs
-    x_axis = np.arange(avg_train_loss.shape[1])
+    x_axis = np.arange(avg_train_loss.shape[0])
 
     # Plot average train/val loss
     loss_data_arr = [avg_train_loss, avg_val_loss]
