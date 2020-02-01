@@ -12,12 +12,9 @@
 # https://scipy.org/install.html
 ################################################################################
 
-import os
-import gzip
-import yaml
+import os, math, gzip, yaml
 import numpy as np
 import matplotlib.pyplot as plt
-import pickle
 
 
 class EvalMetrics(object):
@@ -40,8 +37,8 @@ def normalize_data(img):
     """
     Normalize your inputs here and return them.
     """
-	# img is (60,000 x 784) matrix where rows = samples, cols = pixels in img
-	# normalize each column to 0 mean with unit standard deviation (z-score)
+    # img is (60,000 x 784) matrix where rows = samples, cols = pixels in img
+    # normalize each column to 0 mean with unit standard deviation (z-score)
     img = (img - np.mean(img,axis=0)) / np.std(img,axis=0)
     return img
 
@@ -234,7 +231,7 @@ class Activation():
         Implement tanh here.
         """
         return np.tanh(x)
-	
+    
 
     def ReLU(self, x):
         """
@@ -288,8 +285,6 @@ class Layer():
         """
         Define the architecture and create placeholder.
         """
-        np.random.seed(42)
-
         # define batch size
         self.batch_size = config['batch_size']
         
@@ -444,69 +439,149 @@ class Neuralnetwork():
             delta = layer.backward(delta)
 
 
-def train(model, x_train, y_train, x_valid, y_valid, config):
+def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
     """
     Train your model here.
     Implement batch SGD to train the model.
     Implement Early Stopping.
     Use config to set parameters for training like learning rate, momentum, etc.
     """
-    """
-    # Implement Batch Stochastic Gradient Descent (Batch = 128 samples)
-    if (x_train.shape[0] % 128 != 0):
-        num_batches = np.floor(x_train.shape[0] / 128)
-        even_split_size = num_batches * 128
-        x_train_batch = np.split(x_train[:even_split_size,:],num_batches,axis=0)
-        x_train_batch.append(x_train[-(x_train.shape[0]-even_split_size):,:])
-    else:
-        x_train_batch = np.split(x_train,x_train.shape[0]/128,axis=0)
-    """
+    # define congif parameters
     batch_size = config['batch_size']
     epochs = config['epochs']
     alpha = config['learning_rate']
-    mom_gamma = config['momentum_gamma']
-    eval_arr = []
-    for epoch in range(epochs):
-        output_layer = True
-        for i, (data, labels) in enumerate(get_data_batch(x_train, y_train, batch_size, shuffle=True)):
-            # Problem 3B
-            # data = data[0,:]
-            # labels = labels[0,:]
-            pred, loss = model(data, labels)
-            model.backward()
-            v_tm1 = 1
-            # update weights
-            for layer in model.layers[::-1]:
-                if (hasattr(layer,'activation_type')):
-                    continue
+    mom_gamma = config['momentum_gamma']    
+    
+    ### Step 1: Split images in K subsections
+    data, targets = split_training_data(x_train, y_train, k)
+    
+    # Store loss/accuracy for each epoch per fold so we can calculate average
+    # accuracy/loss matrices: shape (k x num_epochs)
+    # Plot mean/std of each col    
+    train_loss = np.zeros((k,epochs)) 
+    train_acc = np.zeros((k,epochs)) 
+    val_loss = np.zeros((k,epochs)) 
+    val_acc = np.zeros((k,epochs)) 
+    test_acc_per_fold = np.zeros(k) 
+    
+    ### Step 2: Define train and validation data, normalize all data    
+    for fold in range(k):
+        # create new model for each fold
+        model = Neuralnetwork(config)
+        # Grab validation set (20 % of data)
+        test_idx = (fold + 1) % k
+        val_data = np.concatenate((data[fold],data[test_idx]),axis=0)
+        val_target = np.concatenate((targets[fold],targets[test_idx]),axis=0)
+        # Grab training set
+        first_flag = True
+        for i in range(k):
+            # if key isnt val or test model add to training data
+            if (i != fold) and (i != test_idx):
+                # if not first training subset 
+                if (first_flag):
+                    first_flag = False
+                    train_data = data[i]
+                    train_target = targets[i]
                 else:
-                    # Weights
-                    # define momentum
-                    layer.vt_w = mom_gamma*layer.vtm1_w + layer.d_w
-                    # update weights
-                    layer.w = layer.w + alpha*layer.vt_w 
-                    # update momentum
-                    layer.vtm1_w = layer.vt_w
-                    # Bias
-                    # define momentum
-                    layer.vt_b = mom_gamma*layer.vtm1_b + layer.d_b
-                    # update bias
-                    layer.b = layer.b + alpha*layer.vt_b
-                    # update momentum
-                    layer.vtm1_b = layer.vt_b
+                    train_data = np.concatenate((train_data,data[i]),axis=0)
+                    train_target = np.concatenate((train_target,targets[i]),axis=0)
+                           
+        # Get training mean and std
+        train_mean = np.mean(train_data,axis=0)
+        train_std = np.std(train_data,axis=0)
+                                  
+        # z score each pixel channel
+        # value = (old_val - channel mean) / (channel std)
+        train_data = (train_data - train_mean) / train_std
+        val_data = (val_data - train_mean) / train_std
+        test_data = (test_data - train_mean) / train_std         
 
-        pred_valid, loss_valid = model(x_valid, y_valid)
-        acc_valid = eval_metrics(pred_valid, y_valid)
-        print(
-            f"Epoch:{epoch+1}, Accuracy:{acc_valid}, loss:{loss_valid}")
+        ### Step 3: Train Neural Net
+        # compute initial training/val/test loss and accuracy
+        pred_train, loss_train = model(train_data, train_target)
+        train_acc[fold,0] = eval_metrics(pred_train, train_target)
+        train_loss[fold,0] = loss_train
+        # validation loss/accuracy with updated weights
+        pred_val, loss_val = model(val_data, val_target)
+        val_acc[fold,0] = eval_metrics(pred_val, val_target)
+        val_loss[fold,0] = loss_val        
 
-        # early stopping criterion
-        # limit on epoch to avoid  stopping for initial random jumps
-        #if (epoch > 10):
-        #    if (loss_valid < eval_arr[-1].loss):
-        #        break
+        # define best model loss per fold
+        best_model_loss = math.inf 
+        
+        """
+        # get numbe of weight matrices in model
+        num_layers_with_weight_mat = 0
+        for layer in model.layers:
+            if (hasattr(layer,'activation_type')):
+                continue
+            else: 
+                num_layers_with_weight_mat += 1
+        best_weights = [None] * num_layers_with_weight_mat
+        best_bias = [None] * num_layers_with_weight_mat
+        """
+            
+        # Call gradient descent to train weights for num_epochs times
+        # SDG with momentum and regularization
+        for m in range(epochs):
+            for i, (tdata, labels) in enumerate(get_data_batch(train_data, train_target, batch_size, shuffle=True)):
+                # train model on batch
+                pred, loss = model(tdata, labels)
+                model.backward()
+                # update weights
+                for layer in model.layers[::-1]:
+                    if (hasattr(layer,'activation_type')):
+                        continue
+                    else:
+                        # Weights
+                        # define momentum
+                        layer.vt_w = mom_gamma*layer.vtm1_w + layer.d_w
+                        # update weights
+                        layer.w = layer.w + alpha*layer.vt_w 
+                        # update momentum
+                        layer.vtm1_w = layer.vt_w
+                        # Bias
+                        # define momentum
+                        layer.vt_b = mom_gamma*layer.vtm1_b + layer.d_b
+                        # update bias
+                        layer.b = layer.b + alpha*layer.vt_b
+                        # update momentum
+                        layer.vtm1_b = layer.vt_b
+    
+            # train loss/accuracy with updated weights
+            pred_train, loss_train = model(train_data, train_target)
+            train_acc[fold,m] = eval_metrics(pred_train, train_target)
+            train_loss[fold,m] = loss_train
+            # validation loss/accuracy with updated weights
+            pred_val, loss_val = model(val_data, val_target)
+            val_acc[fold,m] = eval_metrics(pred_val, val_target)
+            val_loss[fold,m] = loss_val
+            print(f"Epoch:{m+1}, Accuracy:{val_acc[fold,m+1]}, loss:{val_loss[fold,m+1]}")
+    
+            # Save model with lowest validation loss and use this to compute best 
+            # test performance for this fold
+            if (val_loss[fold,m+1] < best_model_loss):
+                best_model_loss = val_loss[fold,m+1]
+                """
+                # save current weights in case best weights
+                for layer in model.layers:
+                    if (hasattr(layer,'activation_type')):
+                        continue
+                    else:
+                        best_weights[layer_num] = layer.w
+                        best_bias[layer_num] = layer.b
+                """
+                pred_test, loss_test = model(test_data,test_target) 
+                test_acc_per_fold[fold] = eval_metrics(pred_test, test_target)
 
-        eval_arr.append(EvalMetrics([loss_valid, acc_valid]))
+                
+    ### Step 4: Plots and Calculations
+    avg_test_acc_final = np.mean(test_acc_per_fold)
+    avg_test_acc_std_final = np.std(test_acc_per_fold)
+    print('Test Accuracy Using Best Model: ' + str(avg_test_acc_final))
+    print('Test Accuracy Standard Deviation Using Best Model: ' + str(avg_test_acc_std_final))
+    plot_curves(train_loss, val_loss, train_acc, val_acc)
+
 
 
 def eval_metrics(y_pred, y_actual):
@@ -517,29 +592,76 @@ def eval_metrics(y_pred, y_actual):
     return accuracy
 
 
-def test(model, X_test, y_test):
-    """
-    Calculate and return the accuracy on the test set.
-    """
-    # run test data through model
-    #model_after_forward_prop = model.__call__(X_test)
-    # get model output
-    #model_output = model_after_forward_prop.y
-    # calculate test error
-    batchsize = 50
-    correct = 0.
-    for data, label in DataBatch(X_test, y_test, batchsize, shuffle=False):
-        prediction = model.predict(data)
-        correct += np.sum(prediction == label.argmax(axis=1))
-    return correct * 100 / testData.shape[0]
+def split_training_data(x_train,y_train,k):
+    # split data into k-subsets and store in dictionaries where the key
+    # is the subset number and values are the images or targets
+    img_data = {}
+    target_data = {}
+    pixels_per_subset = int(np.floor(x_train.shape[0] / k))
+    curr_subset = 0
+    for i in range(k):
+        # find beginning and ending index for each subset
+        begin_idx = int(curr_subset * pixels_per_subset)
+        end_idx = int(begin_idx + pixels_per_subset)
+        # populate dictionaries
+        img_data[curr_subset] = x_train[begin_idx:end_idx,:]
+        target_data[curr_subset] = y_train[begin_idx:end_idx,:]
+        # update subset and stopping condition
+        curr_subset += 1
+        if (curr_subset == k):
+            break    
+    # 
+    return img_data, target_data
+    
+"""
+Loss and Performance Plots Function
+    General Info: This function plots all needed graphs
+    Input: 
+        - training_set: 
+"""
+def plot_curves(train_loss, val_loss, train_acc, val_acc):
+    # define x-axis using number of epochs
+    x_axis = np.arange(train_loss.shape[1])
+    
+    # Average the train/val loss and accuracy from all k trials
+    # Plot average and std of training and validation curves
+    avg_train_loss = np.mean(train_loss,axis=0)
+    std_train_loss = np.std(train_loss,axis=0)
+    avg_val_loss = np.mean(val_loss,axis=0)
+    std_val_loss = np.std(val_loss,axis=0)
+    avg_train_acc = np.mean(train_acc,axis=0)
+    std_train_acc = np.std(train_acc,axis=0)
+    avg_val_acc = np.mean(val_acc,axis=0)
+    std_val_acc = np.std(val_acc,axis=0)
+    
+    # Plot average train/val loss
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.errorbar(x_axis,avg_train_loss,yerr=std_train_loss,errorevery=10)
+    ax.errorbar(x_axis,avg_val_loss,yerr=std_val_loss,errorevery=10)
+    ax.legend(['Avg Training Loss','Avg Val Loss'])
+    ax.set_xlabel('Number of Epochs')
+    ax.set_ylabel('Cross Entropy Error')
+    ax.set_title('Average Training and Validation Loss')
+    ax.grid()
+    plt.show()
+    
+    # plot average train/val accuracy
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.errorbar(x_axis,avg_train_acc,yerr=std_train_acc,errorevery=10)
+    ax.errorbar(x_axis,avg_val_acc,yerr=std_val_acc,errorevery=10)
+    ax.legend(['Avg Training Accuracy','Avg Val Accuracy'])
+    ax.set_xlabel('Number of Epochs')
+    ax.set_ylabel('Accuracy')
+    ax.set_title('Average Training and Validation Accuracy')
+    ax.grid()
+    plt.show()
 
 
 if __name__ == "__main__":
     # Load the configuration.
     config = load_config("./config.yaml")
-
-    # Create the model
-    model = Neuralnetwork(config)
 
     # Load the data
     x_train, y_train = load_data(path="./", mode="train")
@@ -550,25 +672,6 @@ if __name__ == "__main__":
     print(f"number of patterns in training data :{num_train_patterns}")
     print(f"number of patterns in testing data :{num_test_patterns}")
 
-    # Visualising the labels
-    # plot_labels(x_train, y_train)
-
-    # Create splits for validation data here.
-    """
-    # setting 20% of data as validation set
-    num_valid_samples = int(np.floor(x_train.shape[0]*(.2)))
-    end_idx = x_train.shape[0]
-    x_valid = x_train[-num_valid_samples:,:]
-    y_valid = y_train[-num_valid_samples:,:]
-    x_train = x_train[:-num_valid_samples,:]
-    y_train = y_train[:-num_valid_samples,:]
-    """
-    x_train, y_train, x_valid, y_valid = validation_split(
-        x_train, y_train, split=0.2, cross_validation=False)
-    # print(x_train[:1], x_train[:1].min(), x_train[:1].max())
-
-    # train the model
-    train(model, x_train, y_train, x_valid,
-          y_valid, config)
-
-    # test_acc = test(model, x_test, y_test)
+    # train and test the model
+    train_and_test(x_train, y_train, x_test,
+          y_test, config)
