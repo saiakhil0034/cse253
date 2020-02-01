@@ -73,7 +73,7 @@ def sanity_layers(data):
     check_error(err_tanh,    "Tanh Forward Pass")
     check_error(err_ReLU,    "ReLU Forward Pass")
 
-    print(20 * "-", "\n")
+    print(20 * "-", "\n") 
 
     # Compute the gradients.
     grad_sigmoid = act_sigmoid.backward(1.0)
@@ -90,7 +90,7 @@ def sanity_layers(data):
     check_error(err_tanh_grad,    "Tanh Gradient")
     check_error(err_ReLU_grad,    "ReLU Gradient")
 
-    print(20 * "-", "\n")
+    print(20 * "-", "\n") ######################### correct up to here
 
 
 def sanity_network(data, default_config):
