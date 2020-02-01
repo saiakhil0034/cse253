@@ -293,6 +293,12 @@ class Layer():
         # define batch size
         self.batch_size = config['batch_size']
         
+        # define momentum per layer for weights and bias
+        self.vt_w = 0
+        self.vtm1_w = 0
+        self.vt_b = 0
+        self.vtm1_b = 0
+        
         # Declare the Weight matrix
         # weights should be initialized with 0 mean into node j and 
         # std = sqrt(1/m) where m is fan in to next layer
@@ -458,6 +464,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
     batch_size = config['batch_size']
     epochs = config['epochs']
     alpha = config['learning_rate']
+    mom_gamma = config['momentum_gamma']
     eval_arr = []
     for epoch in range(epochs):
         output_layer = True
@@ -467,13 +474,26 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
             # labels = labels[0,:]
             pred, loss = model(data, labels)
             model.backward()
+            v_tm1 = 1
             # update weights
             for layer in model.layers[::-1]:
                 if (hasattr(layer,'activation_type')):
                     continue
                 else:
-                    layer.w = layer.w + alpha * layer.d_w
-                    layer.b = layer.b + alpha * layer.d_b
+                    # Weights
+                    # define momentum
+                    layer.vt_w = mom_gamma*layer.vtm1_w + layer.d_w
+                    # update weights
+                    layer.w = layer.w + alpha*layer.vt_w 
+                    # update momentum
+                    layer.vtm1_w = layer.vt_w
+                    # Bias
+                    # define momentum
+                    layer.vt_b = mom_gamma*layer.vtm1_b + layer.d_b
+                    # update bias
+                    layer.b = layer.b + alpha*layer.vt_b
+                    # update momentum
+                    layer.vtm1_b = layer.vt_b
 
         pred_valid, loss_valid = model(x_valid, y_valid)
         acc_valid = eval_metrics(pred_valid, y_valid)
