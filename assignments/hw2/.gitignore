@@ -1,0 +1,8 @@
+.ipynb_checkpoints
+.ipynb_checkpoints/*
+*.ipynb
+latex
+latex*
+*__pycache__*
+*PA2/__pycache__*
+*PA2/__pycache__/*

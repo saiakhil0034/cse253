@@ -55,18 +55,18 @@ def sanity_layers(data):
 
     # Get the activations.
     act_sigmoid = neuralnet.Activation('sigmoid')
-    act_tanh    = neuralnet.Activation('tanh')
-    act_ReLU    = neuralnet.Activation('ReLU')
+    act_tanh = neuralnet.Activation('tanh')
+    act_ReLU = neuralnet.Activation('ReLU')
 
     # Get the outputs for forward-pass.
     out_sigmoid = act_sigmoid(random_input)
-    out_tanh    = act_tanh(random_input)
-    out_ReLU    = act_ReLU(random_input)
+    out_tanh = act_tanh(random_input)
+    out_ReLU = act_ReLU(random_input)
 
     # Compute the errors.
     err_sigmoid = np.sum(np.abs(data['out_sigmoid'] - out_sigmoid))
-    err_tanh    = np.sum(np.abs(data['out_tanh'] - out_tanh))
-    err_ReLU    = np.sum(np.abs(data['out_ReLU'] - out_ReLU))
+    err_tanh = np.sum(np.abs(data['out_tanh'] - out_tanh))
+    err_ReLU = np.sum(np.abs(data['out_ReLU'] - out_ReLU))
 
     # Check the errors.
     check_error(err_sigmoid, "Sigmoid Forward Pass")
@@ -77,13 +77,13 @@ def sanity_layers(data):
 
     # Compute the gradients.
     grad_sigmoid = act_sigmoid.backward(1.0)
-    grad_tanh    = act_tanh.backward(1.0)
-    grad_ReLU    = act_ReLU.backward(1.0)
+    grad_tanh = act_tanh.backward(1.0)
+    grad_ReLU = act_ReLU.backward(1.0)
 
     # Compute the errors.
     err_sigmoid_grad = np.sum(np.abs(data['grad_sigmoid'] - grad_sigmoid))
-    err_tanh_grad    = np.sum(np.abs(data['grad_tanh'] - grad_tanh))
-    err_ReLU_grad    = np.sum(np.abs(data['grad_ReLU'] - grad_ReLU))
+    err_tanh_grad = np.sum(np.abs(data['grad_tanh'] - grad_tanh))
+    err_ReLU_grad = np.sum(np.abs(data['grad_ReLU'] - grad_ReLU))
 
     # Check the errors.
     check_error(err_sigmoid_grad, "Sigmoid Gradient")
@@ -96,7 +96,7 @@ def sanity_layers(data):
 def sanity_network(data, default_config):
     """
     Check implementation of the neural network's forward pass and backward pass.
-    """    
+    """
     # Set seed to reproduce results.
     np.random.seed(42)
 
@@ -107,20 +107,27 @@ def sanity_network(data, default_config):
     nnet = neuralnet.Neuralnetwork(default_config)
 
     # Compute the forward pass.
-    nnet(random_image, targets = np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+    nnet(random_image, targets=np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
 
     # Compute the backward pass.
     nnet.backward()
 
     layer_no = 0
+    # print(data['nnet'].layers)
     for layer_idx, layer in enumerate(nnet.layers):
         if isinstance(layer, neuralnet.Layer):
+            # print(layer)
             layer_no += 1
-            error_x   = np.sum(np.abs(data['nnet'].layers[layer_idx].x   - layer.x))
-            error_w   = np.sum(np.abs(data['nnet'].layers[layer_idx].w   - layer.w))
-            error_b   = np.sum(np.abs(data['nnet'].layers[layer_idx].b   - layer.b))
-            error_d_w = np.sum(np.abs(data['nnet'].layers[layer_idx].d_w - layer.d_w))
-            error_d_b = np.sum(np.abs(data['nnet'].layers[layer_idx].d_b - layer.d_b))
+            error_x = np.sum(
+                np.abs(data['nnet'].layers[layer_idx].x - layer.x))
+            error_w = np.sum(
+                np.abs(data['nnet'].layers[layer_idx].w - layer.w))
+            error_b = np.sum(
+                np.abs(data['nnet'].layers[layer_idx].b - layer.b))
+            error_d_w = np.sum(
+                np.abs(data['nnet'].layers[layer_idx].d_w - layer.d_w))
+            error_d_b = np.sum(
+                np.abs(data['nnet'].layers[layer_idx].d_b - layer.d_b))
 
             check_error(error_x,   f"Layer{layer_no}: Input")
             check_error(error_w,   f"Layer{layer_no}: Weights")
@@ -133,9 +140,10 @@ def sanity_network(data, default_config):
 
 if __name__ == '__main__':
     # Load the data and configuration.
-    sanity_data    = get_data("./")
+    sanity_data = get_data("./")
     default_config = load_config("./")
 
     # Run Sanity.
     sanity_layers(sanity_data)
+    print("hello")
     sanity_network(sanity_data, default_config)
