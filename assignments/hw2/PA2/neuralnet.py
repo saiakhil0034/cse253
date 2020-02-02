@@ -604,10 +604,16 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
 
             # early stopping criterion
             # limit on epoch to avoid  stopping for initial random jumps
+            # we can store everytime there is decrease in validation loss using statement below
+            # But, we chosse to store only at early stopping condition as it satisfies
+            # the same condition except for last few iteration before early stopping
+            #  and we expect not a big chnage in model for few iterations . Hence, just to be more effient
+            #  in stopping and storing and
+            # We are choosing early stop epochs as 5
             if config["early_stop"] & bm_store_not:
                 if (epoch > config["early_stop_epoch"]):
-                    # loss is in order of 1, hence to avoid nose this 0.1
                     if (loss_val > np.mean(val_loss[fold, epoch - config["early_stop_epoch"]: epoch])):
+
                         b_config, b_model_data = model.store()
                         bm_store_not = False
 
@@ -617,6 +623,9 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
             # Save model with lowest validation loss and use this to compute best
             # test performance for this fold
             if (val_loss[fold, epoch] < best_model_loss):
+
+
+                # b_config, b_model_data = model.store()
                 best_model_loss = val_loss[fold, epoch]
                 """
                 # save current weights in case best weights
