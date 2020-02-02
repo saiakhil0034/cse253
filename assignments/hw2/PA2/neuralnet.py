@@ -462,7 +462,7 @@ class Neuralnetwork(object):
 
     @classmethod
     def makeit(cls, config, layers):
-        print(len(layers))
+        # print(len(layers))
         modeln = cls(config)
         ind = 0
         for i in range(len(modeln.layers)):
@@ -623,7 +623,6 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
             # Save model with lowest validation loss and use this to compute best
             # test performance for this fold
             if (val_loss[fold, epoch] < best_model_loss):
-
 
                 # b_config, b_model_data = model.store()
                 best_model_loss = val_loss[fold, epoch]

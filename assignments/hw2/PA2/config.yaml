@@ -2,16 +2,16 @@
 layer_specs: [784, 100, 10]
 
 # Type of non-linear activation function to be used for the layers.
-activation: "sigmoid"
+activation: "tanh"
 
 # The learning rate to be used for training.
-learning_rate: 0.001
+learning_rate: 0.005
 
 # Number of training samples per batch to be passed to network
-batch_size: 200
+batch_size: 128
 
 # Number of epochs to train the model
-epochs: 300
+epochs: 60
 
 # Flag to enable early stopping
 early_stop: True

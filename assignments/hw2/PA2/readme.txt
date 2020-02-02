@@ -7,7 +7,7 @@
 
 runnable_file : neuralnet.py.
 # How to run the file (make sure you have data and config files in same path).
-python3 -m neuralnet.py.
+python3 -u neuralnet.py.
 
 # for different parts of the question we just need to run the file with different configs
 # Uncomment respective calling of the functions
