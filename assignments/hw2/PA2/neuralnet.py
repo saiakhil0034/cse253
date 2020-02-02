@@ -635,6 +635,9 @@ def train_and_test(x_train, y_train, test_data, test_target, config, k=10):
                         best_weights[layer_num] = layer.w
                         best_bias[layer_num] = layer.b
                 """
+        # If overfitting didn;t happen take the last model itself
+        if bm_store_not:
+            b_config, b_model_data = model.store()
         # getting the best model from saved values
         model = Neuralnetwork.makeit(b_config, b_model_data)
 
